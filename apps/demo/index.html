@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Precomputed Unlearning Demo</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Influence-aware unlearning demo home">
+        <span class="brand-mark" aria-hidden="true">IH</span>
+        <span>Influence-aware unlearning</span>
+      </a>
+      <span class="read-only-tag"><span class="status-dot"></span> Precomputed · Read only</span>
+    </header>
+
+    <main class="page-shell">
+      <section class="intro" aria-labelledby="page-title">
+        <div class="eyebrow">Experiment viewer</div>
+        <h1 id="page-title">Recommendations before and after unlearning</h1>
+        <p class="intro-copy">Compare a saved Top-K result for the same pseudonymous example user and target item. This page reads exported results only; it does not run a recommender or an experiment.</p>
+      </section>
+
+      <section class="selection-panel panel" aria-label="Saved result selection">
+        <label class="field">
+          <span>Saved scenario</span>
+          <select id="scenario-select" disabled>
+            <option>Loading saved scenarios…</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Method</span>
+          <select id="method-select" disabled>
+            <option>Select a scenario first</option>
+          </select>
+        </label>
+        <div class="selection-stamp">
+          <span class="stamp-label">Result type</span>
+          <strong>Completed offline run</strong>
+        </div>
+      </section>
+
+      <section id="message" class="message" role="status" aria-live="polite">
+        <span class="message-icon" aria-hidden="true">…</span>
+        <div>
+          <h2>Loading saved results</h2>
+          <p>Reading the local demo bundle.</p>
+        </div>
+      </section>
+
+      <div id="results" hidden>
+        <section class="scenario-heading panel">
+          <div>
+            <div class="eyebrow">Selected experiment setting</div>
+            <h2 id="scenario-title"></h2>
+            <p id="scenario-summary" class="muted"></p>
+          </div>
+          <span class="tier-pill">Deployable result</span>
+        </section>
+
+        <section class="settings-grid" aria-label="Experiment settings">
+          <article class="setting-card panel">
+            <span class="card-label">Dataset</span>
+            <strong id="dataset"></strong>
+          </article>
+          <article class="setting-card panel">
+            <span class="card-label">Hypergraph</span>
+            <strong id="construction"></strong>
+          </article>
+          <article class="setting-card panel">
+            <span class="card-label">Attack</span>
+            <strong id="attack"></strong>
+          </article>
+          <article class="setting-card panel">
+            <span class="card-label">Identification setting</span>
+            <strong id="identification"></strong>
+          </article>
+        </section>
+
+        <section class="seed-line panel" aria-label="Experiment seeds">
+          <div>
+            <span class="card-label">Recorded seeds</span>
+            <p id="seeds" class="seed-values"></p>
+          </div>
+          <div class="target-chip">
+            <span class="target-symbol" aria-hidden="true">◎</span>
+            <span><small>Target item</small><strong id="target-name"></strong></span>
+          </div>
+        </section>
+
+        <section class="comparison-section" aria-labelledby="comparison-title">
+          <div class="section-heading">
+            <div>
+              <div class="eyebrow">One saved example</div>
+              <h2 id="comparison-title">Top-K comparison</h2>
+            </div>
+            <div class="example-user"><span class="avatar" aria-hidden="true">U</span><span><small>Curated benign example · pseudonymous</small><strong id="user-name"></strong></span></div>
+          </div>
+          <div class="comparison-grid">
+            <article class="list-card panel">
+              <div class="list-card-heading">
+                <div><span class="eyebrow">Before unlearning</span><h3>Original recommendations</h3></div>
+                <div class="rank-box"><small>Target rank</small><strong id="rank-before"></strong></div>
+              </div>
+              <ol id="list-before" class="recommendation-list"></ol>
+            </article>
+            <article class="list-card panel after-card">
+              <div class="list-card-heading">
+                <div><span class="eyebrow">After unlearning</span><h3 id="method-heading">Selected method</h3></div>
+                <div class="rank-box"><small>Target rank</small><strong id="rank-after"></strong></div>
+              </div>
+              <ol id="list-after" class="recommendation-list"></ol>
+            </article>
+          </div>
+          <p class="rank-note">Ranks are one-based. “Not present in saved Top-K” means the item is absent from the displayed list; a full rank is shown only when it was exported.</p>
+        </section>
+
+        <section class="metrics-section panel" aria-labelledby="metrics-title">
+          <div class="metrics-heading">
+            <div>
+              <div class="eyebrow">Aggregate run output</div>
+              <h2 id="metrics-title">Evaluation and elapsed time</h2>
+            </div>
+            <span class="aggregate-note">Evaluation-only aggregates · not runtime inputs</span>
+          </div>
+          <div id="metrics" class="metric-grid"></div>
+          <p id="no-metrics" class="muted" hidden>No aggregate metrics were included in this completed run.</p>
+        </section>
+
+        <p class="footer-note">All values above are precomputed. Per-user evaluator labels, hidden attacker identities, manifests, and model checkpoints are not included in this viewer.</p>
+      </div>
+    </main>
+  </body>
+</html>
