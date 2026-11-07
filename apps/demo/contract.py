@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from typing import Any
 
 
-BUNDLE_SCHEMA_VERSION = 1
+BUNDLE_SCHEMA_VERSION = 2
 SOURCE_SCHEMA_VERSION = "completed-run-export-v1"
 EXAMPLE_USER_LABEL = "Example user 01"
 
@@ -27,6 +27,31 @@ METRIC_LABELS = {
 }
 
 SEED_NAMES = ("world", "attack", "flagging", "training", "unlearning")
+PIPELINE_STEPS = {
+    "dataset_preprocessing",
+    "interaction_matrix",
+    "hypergraph_construction",
+    "recommendation_baseline",
+}
+POISONING_STEPS = {
+    "attack_configuration",
+    "poisoning_simulation",
+    "identification",
+    "unlearning",
+    "evaluation",
+}
+TRACE_COUNT_KEYS = {
+    "users",
+    "items",
+    "interactions",
+    "hyperedges",
+    "memberships",
+    "injected_interactions",
+    "candidate_sources",
+    "flagged_sources",
+    "removed_hyperedges",
+    "evaluation_users",
+}
 
 
 class ContractError(ValueError):
@@ -96,6 +121,33 @@ def _topk(value: Any, name: str, top_k: int, rank: int | None, target_label: str
         raise ContractError(f"{name} includes the target but its saved rank is unavailable")
 
 
+def _trace(value: Any, name: str, allowed_steps: set[str]) -> None:
+    if not isinstance(value, list) or len(value) > len(allowed_steps):
+        raise ContractError(f"{name} must be a list with at most {len(allowed_steps)} events")
+    seen_steps: set[str] = set()
+    for index, raw_event in enumerate(value):
+        event_name = f"{name}[{index}]"
+        event = _object(raw_event, event_name, {"step", "counts", "elapsed_seconds"})
+        step = event["step"]
+        if not isinstance(step, str) or step not in allowed_steps:
+            raise ContractError(f"{event_name}.step is unsupported")
+        if step in seen_steps:
+            raise ContractError(f"{name} contains a duplicate step")
+        seen_steps.add(step)
+        counts = event["counts"]
+        if not isinstance(counts, Mapping):
+            raise ContractError(f"{event_name}.counts must be an object")
+        unknown_counts = set(counts) - TRACE_COUNT_KEYS
+        if unknown_counts:
+            raise ContractError(f"{event_name}.counts has unsupported keys: {', '.join(sorted(unknown_counts))}")
+        for count_name, count in counts.items():
+            if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+                raise ContractError(f"{event_name}.counts.{count_name} must be a non-negative integer")
+        elapsed = event["elapsed_seconds"]
+        if elapsed is not None:
+            _number(elapsed, f"{event_name}.elapsed_seconds", minimum=0)
+
+
 def validate_bundle(bundle: Any) -> dict[str, Any]:
     """Validate and return a bundle. Unknown fields are rejected, not rendered."""
     root = _object(bundle, "bundle", {"schema_version", "scenarios"})
@@ -109,12 +161,17 @@ def validate_bundle(bundle: Any) -> dict[str, Any]:
         scenario = _object(
             raw_scenario,
             prefix,
-            {"label", "tier", "setting", "target_item_label", "example", "methods"},
+            {
+                "label", "tier", "setting", "target_item_label", "example", "methods",
+                "pipeline_trace", "poisoning_trace",
+            },
         )
         _text(scenario["label"], f"{prefix}.label")
         if scenario["tier"] != "deployable":
             raise ContractError(f"{prefix}.tier must be deployable; oracle results are excluded")
         _text(scenario["target_item_label"], f"{prefix}.target_item_label")
+        _trace(scenario["pipeline_trace"], f"{prefix}.pipeline_trace", PIPELINE_STEPS)
+        _trace(scenario["poisoning_trace"], f"{prefix}.poisoning_trace", POISONING_STEPS)
 
         setting = _object(
             scenario["setting"],
@@ -255,6 +312,8 @@ def sanitize_source(source: Any) -> dict[str, Any]:
                     ],
                     "target_rank_before": example["target_rank_before"],
                 },
+                "pipeline_trace": _sanitize_trace(scenario.get("pipeline_trace", [])),
+                "poisoning_trace": _sanitize_trace(scenario.get("poisoning_trace", [])),
                 "methods": sanitized_methods,
             }
         except (KeyError, TypeError) as error:
@@ -262,3 +321,24 @@ def sanitize_source(source: Any) -> dict[str, Any]:
         scenarios.append(sanitized)
 
     return validate_bundle({"schema_version": BUNDLE_SCHEMA_VERSION, "scenarios": scenarios})
+
+
+def _sanitize_trace(value: Any) -> list[dict[str, Any]]:
+    """Copy only fixed step codes, aggregate counters, and elapsed times."""
+    if not isinstance(value, list):
+        raise ContractError("trace must be a list")
+    events: list[dict[str, Any]] = []
+    for event in value:
+        if not isinstance(event, Mapping):
+            raise ContractError("trace event must be an object")
+        counts = event.get("counts", {})
+        if not isinstance(counts, Mapping):
+            raise ContractError("trace counts must be an object")
+        events.append(
+            {
+                "step": event.get("step"),
+                "counts": {key: counts[key] for key in sorted(TRACE_COUNT_KEYS) if key in counts},
+                "elapsed_seconds": event.get("elapsed_seconds"),
+            }
+        )
+    return events

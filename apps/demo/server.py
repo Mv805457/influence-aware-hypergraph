@@ -9,12 +9,14 @@ from pathlib import Path
 import sys
 from urllib.parse import urlsplit
 
-from contract import ContractError, validate_bundle
+from contract import BUNDLE_SCHEMA_VERSION, ContractError, validate_bundle
+from shop_catalog import CatalogError, validate_catalog
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 APP_DIR = Path(__file__).resolve().parent
 BUNDLE_PATH = REPO_ROOT / "results" / "demo-bundle.json"
+CATALOG_PATH = REPO_ROOT / "results" / "shop-catalog.json"
 STATIC_FILES = {
     "/": (APP_DIR / "index.html", "text/html; charset=utf-8"),
     "/index.html": (APP_DIR / "index.html", "text/html; charset=utf-8"),
@@ -32,6 +34,9 @@ class DemoHandler(BaseHTTPRequestHandler):
         route = urlsplit(self.path).path
         if route == "/api/bundle":
             self._serve_bundle()
+            return
+        if route == "/api/catalog":
+            self._serve_catalog()
             return
         static_file = STATIC_FILES.get(route)
         if static_file is None:
@@ -66,7 +71,7 @@ class DemoHandler(BaseHTTPRequestHandler):
         except FileNotFoundError:
             # A fresh clone has no generated results because results/ is gitignored.
             # Treat that state as an empty viewer; malformed bundles still error below.
-            self._send_json(200, {"schema_version": 1, "scenarios": []})
+            self._send_json(200, {"schema_version": BUNDLE_SCHEMA_VERSION, "scenarios": []})
             return
         except json.JSONDecodeError as error:
             self._send_json(422, {"error": f"Demo bundle is invalid JSON at line {error.lineno}, column {error.colno}."})
@@ -80,6 +85,25 @@ class DemoHandler(BaseHTTPRequestHandler):
             self._send_json(422, {"error": f"Demo bundle does not match the data contract: {error}"})
             return
         self._send_json(200, bundle)
+
+    def _serve_catalog(self) -> None:
+        try:
+            parsed = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            self._send_json(200, {"schema_version": 1, "products": []})
+            return
+        except json.JSONDecodeError as error:
+            self._send_json(422, {"error": f"Shop catalog is invalid JSON at line {error.lineno}, column {error.colno}."})
+            return
+        except OSError:
+            self._send_json(500, {"error": "Shop catalog could not be read."})
+            return
+        try:
+            catalog = validate_catalog(parsed)
+        except CatalogError as error:
+            self._send_json(422, {"error": f"Shop catalog does not match the data contract: {error}"})
+            return
+        self._send_json(200, catalog)
 
     def _send_json(self, status: int, value: object) -> None:
         body = json.dumps(value, ensure_ascii=False).encode("utf-8")

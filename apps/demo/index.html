@@ -4,134 +4,150 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
-    <title>Precomputed Unlearning Demo</title>
+    <title>IAHU · Experiment Walkthrough</title>
     <link rel="stylesheet" href="/styles.css" />
     <script src="/app.js" defer></script>
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="/" aria-label="Influence-aware unlearning demo home">
+      <a class="brand" href="#shop" data-view-link="shop" aria-label="IAHU demo, shop view">
         <span class="brand-mark" aria-hidden="true">IH</span>
-        <span>Influence-aware unlearning</span>
+        <span><strong>IAHU Lab</strong><small>RECOMMENDER SYSTEM WALKTHROUGH</small></span>
       </a>
-      <span class="read-only-tag"><span class="status-dot"></span> Precomputed · Read only</span>
+      <div class="topbar-meta">
+        <span class="read-only-tag"><span class="status-dot"></span> Local · precomputed</span>
+        <span class="cart-counter" aria-live="polite"><span aria-hidden="true">▣</span> Cart <strong id="cart-count">0</strong></span>
+      </div>
     </header>
 
-    <main class="page-shell">
-      <section class="intro" aria-labelledby="page-title">
-        <div class="eyebrow">Experiment viewer</div>
-        <h1 id="page-title">Recommendations before and after unlearning</h1>
-        <p class="intro-copy">Compare a saved Top-K result for the same pseudonymous example user and target item. This page reads exported results only; it does not run a recommender or an experiment.</p>
-      </section>
-
-      <section class="selection-panel panel" aria-label="Saved result selection">
-        <label class="field">
-          <span>Saved scenario</span>
-          <select id="scenario-select" disabled>
-            <option>Loading saved scenarios…</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Method</span>
-          <select id="method-select" disabled>
-            <option>Select a scenario first</option>
-          </select>
-        </label>
-        <div class="selection-stamp">
-          <span class="stamp-label">Result type</span>
-          <strong>Completed offline run</strong>
-        </div>
-      </section>
-
-      <section id="message" class="message" role="status" aria-live="polite">
-        <span class="message-icon" aria-hidden="true">…</span>
+    <main class="app-shell">
+      <section class="welcome-row">
         <div>
-          <h2>Loading saved results</h2>
-          <p>Reading the local demo bundle.</p>
+          <div class="eyebrow">CAPSTONE DEMO · OFFLINE EXPERIMENT PLAYBACK</div>
+          <h1>From product interactions to unlearning results</h1>
+          <p>Explore a local shopping mockup, then walk through saved experiment artifacts. No experiment runs in this interface.</p>
+        </div>
+        <div class="offline-stamp"><span class="stamp-icon" aria-hidden="true">◷</span><span><strong>Read-only research</strong><small>Training and evaluation stay offline</small></span></div>
+      </section>
+
+      <nav class="step-nav" aria-label="Demo sections">
+        <button class="step-link active" type="button" data-view="shop"><span class="step-number">01</span><span><strong>Shop</strong><small>Local cart UI</small></span></button>
+        <span class="step-connector" aria-hidden="true"></span>
+        <button class="step-link" type="button" data-view="pipeline"><span class="step-number">02</span><span><strong>Hypergraph</strong><small>Saved pipeline trace</small></span></button>
+        <span class="step-connector" aria-hidden="true"></span>
+        <button class="step-link" type="button" data-view="poisoning"><span class="step-number">03</span><span><strong>Poisoning</strong><small>Saved attack trace</small></span></button>
+        <span class="step-connector" aria-hidden="true"></span>
+        <button class="step-link" type="button" data-view="results"><span class="step-number">04</span><span><strong>Results</strong><small>Before / after</small></span></button>
+      </nav>
+
+      <section id="run-controls" class="run-controls panel" hidden aria-label="Saved experiment selection">
+        <div class="run-controls-title"><span class="eyebrow">SAVED RUN</span><strong>Choose a precomputed setting</strong></div>
+        <label class="field"><span>Scenario</span><select id="scenario-select" disabled><option>Loading scenarios…</option></select></label>
+        <label class="field"><span>Method</span><select id="method-select" disabled><option>Choose a scenario first</option></select></label>
+        <span class="precomputed-pill"><span class="status-dot"></span> No live jobs</span>
+      </section>
+
+      <section id="view-shop" class="view-section active" aria-labelledby="shop-title">
+        <div class="shop-hero">
+          <div>
+            <div class="eyebrow light">A SMALL LOCAL STOREFRONT</div>
+            <h2 id="shop-title">Browse the catalog sample</h2>
+            <p>Search and add products to your temporary cart. Cart actions stay in this browser tab and never create an order.</p>
+          </div>
+          <div class="hero-badge"><span aria-hidden="true">✳</span><span>DEMO MODE<strong>No checkout or payment</strong></span></div>
+        </div>
+
+        <div class="shop-layout">
+          <section class="catalog-panel panel" aria-label="Product catalog">
+            <div class="catalog-toolbar">
+              <div><span class="eyebrow">LOCAL CATALOG</span><h3>Products <span id="catalog-count" class="count-label">—</span></h3></div>
+              <div class="catalog-filters">
+                <label class="search-field"><span class="sr-only">Search products</span><span aria-hidden="true">⌕</span><input id="product-search" type="search" placeholder="Search products" autocomplete="off" /></label>
+                <label class="select-compact"><span class="sr-only">Filter by category</span><select id="category-filter"><option value="">All categories</option></select></label>
+              </div>
+            </div>
+            <div id="catalog-message" class="inline-message" role="status" aria-live="polite">Loading product-only catalog…</div>
+            <div id="product-grid" class="product-grid" aria-live="polite"></div>
+            <div class="catalog-pagination"><span id="catalog-page-label">—</span><div><button id="products-prev" class="icon-button" type="button" aria-label="Previous products" disabled>←</button><button id="products-next" class="icon-button" type="button" aria-label="Next products" disabled>→</button></div></div>
+          </section>
+
+          <aside class="cart-panel panel" aria-labelledby="cart-title">
+            <div class="cart-heading"><div><span class="eyebrow">TEMPORARY SESSION</span><h3 id="cart-title">Your cart <span id="cart-items-label" class="count-label">(0)</span></h3></div><span class="cart-icon" aria-hidden="true">▤</span></div>
+            <div id="cart-list" class="cart-list"><p class="cart-empty">Your cart is empty. Add an item to see it here.</p></div>
+            <div class="cart-summary"><div><span>Subtotal</span><strong id="cart-subtotal">₹0.00</strong></div><small>Taxes and delivery are not calculated in this demo.</small><button id="checkout-button" class="checkout-button" type="button" disabled>Demo checkout <span aria-hidden="true">→</span></button><p id="checkout-note" class="checkout-note" role="status" aria-live="polite"></p></div>
+            <div class="privacy-note"><span aria-hidden="true">◈</span><span>Cart is held in memory only and clears when you reload.</span></div>
+          </aside>
+        </div>
+        <p class="source-note">Catalog display fields were imported from the supplied sample archive. The archive is not the specified Video Games experiment dataset; this storefront is visual context only.</p>
+      </section>
+
+      <section id="view-pipeline" class="view-section" aria-labelledby="pipeline-title" hidden>
+        <div class="page-heading panel">
+          <div class="heading-icon blue" aria-hidden="true">⬡</div>
+          <div><div class="eyebrow">STEP 02 · PRECOMPUTED PIPELINE PLAYBACK</div><h2 id="pipeline-title">From interactions to hypergraph</h2><p>Review saved aggregate checkpoints from an offline completed run. This page does not parse a dataset or construct a graph.</p></div>
+          <span class="replay-label">SAVED ARTIFACTS</span>
+        </div>
+        <div id="pipeline-setting" class="setting-strip panel" hidden></div>
+        <section class="trace-panel panel" aria-label="Hypergraph construction trace">
+          <div class="trace-toolbar"><div><span class="eyebrow">PIPELINE TRACE</span><h3>Recorded stages</h3></div><div class="playback-controls"><button type="button" class="secondary-button" data-trace-action="reset" data-trace="pipeline">↺ Reset</button><button type="button" class="secondary-button" data-trace-action="step" data-trace="pipeline">Next stage →</button><button type="button" class="primary-button" data-trace-action="play" data-trace="pipeline">▶ Play saved trace</button></div></div>
+          <div id="pipeline-empty" class="empty-state" hidden><span aria-hidden="true">◌</span><strong>No pipeline trace in this run</strong><p>Export a completed offline run with pipeline_trace events to show recorded counts and timings here. Nothing is generated by this page.</p></div>
+          <ol id="pipeline-timeline" class="trace-timeline"></ol>
+          <div id="pipeline-current" class="trace-current" hidden></div>
+        </section>
+        <p class="boundary-note">Only saved event codes, aggregate counts, and elapsed seconds are displayed. No raw interactions, user IDs, graph files, or checkpoints are loaded.</p>
+      </section>
+
+      <section id="view-poisoning" class="view-section" aria-labelledby="poisoning-title" hidden>
+        <div class="page-heading panel">
+          <div class="heading-icon coral" aria-hidden="true">⌁</div>
+          <div><div class="eyebrow">STEP 03 · PRECOMPUTED ATTACK PLAYBACK</div><h2 id="poisoning-title">Poisoning and unlearning trace</h2><p>Step through saved aggregate events from a completed offline run. No attack, identification, or unlearning code executes here.</p></div>
+          <span class="replay-label">SAVED ARTIFACTS</span>
+        </div>
+        <div id="poisoning-setting" class="setting-strip panel" hidden></div>
+        <section class="trace-panel panel" aria-label="Poisoning and unlearning trace">
+          <div class="trace-toolbar"><div><span class="eyebrow">ATTACK TRACE</span><h3>Recorded stages</h3></div><div class="playback-controls"><button type="button" class="secondary-button" data-trace-action="reset" data-trace="poisoning">↺ Reset</button><button type="button" class="secondary-button" data-trace-action="step" data-trace="poisoning">Next stage →</button><button type="button" class="primary-button" data-trace-action="play" data-trace="poisoning">▶ Play saved trace</button></div></div>
+          <div id="poisoning-empty" class="empty-state" hidden><span aria-hidden="true">◌</span><strong>No attack trace in this run</strong><p>Export a completed offline run with poisoning_trace events to show recorded stages. The demo will not launch or simulate an attack.</p></div>
+          <ol id="poisoning-timeline" class="trace-timeline attack-timeline"></ol>
+          <div id="poisoning-current" class="trace-current" hidden></div>
+        </section>
+        <p class="boundary-note">The trace contract permits aggregate counts only; hidden identities and evaluator-only per-user labels are never sent to this page.</p>
+      </section>
+
+      <section id="view-results" class="view-section" aria-labelledby="results-title" hidden>
+        <div id="results-empty" class="empty-state panel results-empty" hidden><span aria-hidden="true">◷</span><strong>No exported experiment results yet</strong><p>Complete the offline research pipeline and export a reviewed completed-run file. This viewer does not invent recommendations, rankings, traces, or metrics.</p></div>
+        <div id="results-content" hidden>
+          <div class="page-heading panel">
+            <div class="heading-icon green" aria-hidden="true">↗</div>
+            <div><div class="eyebrow">STEP 04 · COMPLETED OFFLINE RUN</div><h2 id="scenario-title">Saved Top-K comparison</h2><p id="scenario-summary">Precomputed result · deployable tier</p></div>
+            <span class="replay-label">RESULTS ONLY</span>
+          </div>
+          <section class="settings-grid" aria-label="Selected experimental setting">
+            <article class="setting-card panel"><span class="card-label">Dataset</span><strong id="dataset"></strong></article>
+            <article class="setting-card panel"><span class="card-label">Hypergraph construction</span><strong id="construction"></strong></article>
+            <article class="setting-card panel"><span class="card-label">Attack</span><strong id="attack"></strong></article>
+            <article class="setting-card panel"><span class="card-label">Identification setting</span><strong id="identification"></strong></article>
+          </section>
+          <section class="seed-line panel" aria-label="Experiment seeds">
+            <div><span class="card-label">Recorded seeds</span><p id="seeds" class="seed-values"></p></div>
+            <div class="target-chip"><span class="target-symbol" aria-hidden="true">◎</span><span><small>Target item</small><strong id="target-name"></strong></span></div>
+          </section>
+          <section class="comparison-section" aria-labelledby="comparison-title">
+            <div class="section-heading"><div><div class="eyebrow">SAME PSEUDONYMOUS EXAMPLE</div><h2 id="comparison-title">Recommendations before and after</h2></div><div class="example-user"><span class="avatar" aria-hidden="true">U</span><span><small>Curated evaluation example</small><strong id="user-name"></strong></span></div></div>
+            <div class="comparison-grid">
+              <article class="list-card panel"><div class="list-card-heading"><div><span class="eyebrow">BEFORE UNLEARNING</span><h3>Original recommendations</h3></div><div class="rank-box"><small>Target rank</small><strong id="rank-before"></strong></div></div><ol id="list-before" class="recommendation-list"></ol></article>
+              <article class="list-card panel after-card"><div class="list-card-heading"><div><span class="eyebrow">AFTER UNLEARNING</span><h3 id="method-heading">Selected method</h3></div><div class="rank-box"><small>Target rank</small><strong id="rank-after"></strong></div></div><ol id="list-after" class="recommendation-list"></ol></article>
+            </div>
+            <p class="rank-note">Ranks are one-based. A target outside saved Top-K is shown only when its full rank was exported.</p>
+          </section>
+          <section class="metrics-section panel" aria-labelledby="metrics-title">
+            <div class="metrics-heading"><div><div class="eyebrow">AGGREGATE RUN OUTPUT</div><h2 id="metrics-title">Evaluation and elapsed time</h2></div><span class="aggregate-note">Aggregate evaluator metrics · not runtime inputs</span></div>
+            <div id="metrics" class="metric-grid"></div><p id="no-metrics" class="muted" hidden>No aggregate metrics were included in this completed run.</p>
+          </section>
+          <p class="footer-note">All values above are precomputed. Per-user evaluator labels, hidden attacker identities, manifests, and model checkpoints are excluded.</p>
         </div>
       </section>
 
-      <div id="results" hidden>
-        <section class="scenario-heading panel">
-          <div>
-            <div class="eyebrow">Selected experiment setting</div>
-            <h2 id="scenario-title"></h2>
-            <p id="scenario-summary" class="muted"></p>
-          </div>
-          <span class="tier-pill">Deployable result</span>
-        </section>
-
-        <section class="settings-grid" aria-label="Experiment settings">
-          <article class="setting-card panel">
-            <span class="card-label">Dataset</span>
-            <strong id="dataset"></strong>
-          </article>
-          <article class="setting-card panel">
-            <span class="card-label">Hypergraph</span>
-            <strong id="construction"></strong>
-          </article>
-          <article class="setting-card panel">
-            <span class="card-label">Attack</span>
-            <strong id="attack"></strong>
-          </article>
-          <article class="setting-card panel">
-            <span class="card-label">Identification setting</span>
-            <strong id="identification"></strong>
-          </article>
-        </section>
-
-        <section class="seed-line panel" aria-label="Experiment seeds">
-          <div>
-            <span class="card-label">Recorded seeds</span>
-            <p id="seeds" class="seed-values"></p>
-          </div>
-          <div class="target-chip">
-            <span class="target-symbol" aria-hidden="true">◎</span>
-            <span><small>Target item</small><strong id="target-name"></strong></span>
-          </div>
-        </section>
-
-        <section class="comparison-section" aria-labelledby="comparison-title">
-          <div class="section-heading">
-            <div>
-              <div class="eyebrow">One saved example</div>
-              <h2 id="comparison-title">Top-K comparison</h2>
-            </div>
-            <div class="example-user"><span class="avatar" aria-hidden="true">U</span><span><small>Curated benign example · pseudonymous</small><strong id="user-name"></strong></span></div>
-          </div>
-          <div class="comparison-grid">
-            <article class="list-card panel">
-              <div class="list-card-heading">
-                <div><span class="eyebrow">Before unlearning</span><h3>Original recommendations</h3></div>
-                <div class="rank-box"><small>Target rank</small><strong id="rank-before"></strong></div>
-              </div>
-              <ol id="list-before" class="recommendation-list"></ol>
-            </article>
-            <article class="list-card panel after-card">
-              <div class="list-card-heading">
-                <div><span class="eyebrow">After unlearning</span><h3 id="method-heading">Selected method</h3></div>
-                <div class="rank-box"><small>Target rank</small><strong id="rank-after"></strong></div>
-              </div>
-              <ol id="list-after" class="recommendation-list"></ol>
-            </article>
-          </div>
-          <p class="rank-note">Ranks are one-based. “Not present in saved Top-K” means the item is absent from the displayed list; a full rank is shown only when it was exported.</p>
-        </section>
-
-        <section class="metrics-section panel" aria-labelledby="metrics-title">
-          <div class="metrics-heading">
-            <div>
-              <div class="eyebrow">Aggregate run output</div>
-              <h2 id="metrics-title">Evaluation and elapsed time</h2>
-            </div>
-            <span class="aggregate-note">Evaluation-only aggregates · not runtime inputs</span>
-          </div>
-          <div id="metrics" class="metric-grid"></div>
-          <p id="no-metrics" class="muted" hidden>No aggregate metrics were included in this completed run.</p>
-        </section>
-
-        <p class="footer-note">All values above are precomputed. Per-user evaluator labels, hidden attacker identities, manifests, and model checkpoints are not included in this viewer.</p>
-      </div>
+      <footer class="app-footer"><span>IAHU · LOCAL DEMONSTRATION</span><span>Static viewer · no experiment execution</span></footer>
     </main>
   </body>
 </html>
