@@ -47,9 +47,11 @@ been produced by this implementation yet.
 - Exact main seeds, operating-point selection, H3 margin, V2/V4 thresholds,
   sparse-dataset OQ-1, OQ-2 degree matching, and research hyperparameter tuning
   still need project preregistration.
-- The profiled MovieLens-1M G1 still fails its unchanged 5% NDCG-gap gate; no
-  valid main run or sanitized research bundle exists. Main attack/control
-  worlds are held until G1 passes.
+- The original and both profiled MovieLens-1M G1 reports fail the unchanged
+  5% NDCG-gap gate; no valid main run or sanitized research bundle exists.
+  Main attack/control worlds are held until G1 passes. The expanded profile
+  was selected by maximum development NDCG and overperforms LightGCN; a
+  parity-based development selection rule needs an explicit research decision.
 
 ## Observed diagnostic status (not an accepted result)
 
