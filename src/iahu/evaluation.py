@@ -34,6 +34,7 @@ def evaluate_full_ranking(
     k: int = 20,
     example_seed: int = 0,
     example_user_id: int | None = None,
+    target_exposure_users: set[int] | frozenset[int] | None = None,
 ) -> EvaluationResult:
     """Rank every candidate item; ties go to lower MovieLens item IDs."""
     import numpy as np
@@ -64,9 +65,22 @@ def evaluate_full_ranking(
     target_ranks: list[int] = []
     target_exposed = 0
     target_eligible = 0
-    ranked_by_user: dict[int, list[tuple[int, float]]] = {}
+    ordered_users = sorted(relevant)
+    if example_user_id is None and target_item_id is not None:
+        eligible_users = [
+            user_id for user_id in ordered_users
+            if target_item_id not in excluded.get(user_id, set())
+        ]
+        example_user_id = random.Random(example_seed).choice(eligible_users) if eligible_users else None
 
-    for user_id in sorted(relevant):
+    # One batched user-item product avoids thousands of small BLAS calls while
+    # retaining exact full-ranking metrics and the documented tie order.
+    user_positions = np.asarray([user_index[user] for user in ordered_users], dtype=np.int64)
+    score_matrix = encoded[user_positions] @ item_vectors.T
+    example_ranking: tuple[tuple[int, int, float], ...] | None = None
+    example_target_rank: int | None = None
+
+    for user_offset, user_id in enumerate(ordered_users):
         candidate_positions = [
             position
             for position, item_id in enumerate(item_ids)
@@ -74,56 +88,49 @@ def evaluate_full_ranking(
         ]
         if not candidate_positions:
             continue
-        scores = item_vectors[candidate_positions] @ encoded[user_index[user_id]]
-        ranking = [
-            (item_ids[position], float(score))
-            for position, score in zip(candidate_positions, scores.tolist())
-        ]
-        ranking.sort(key=lambda pair: (-pair[1], pair[0]))
-        ranked_by_user[user_id] = ranking
+        scores = score_matrix[user_offset, candidate_positions]
+        candidate_ids = np.asarray([item_ids[position] for position in candidate_positions], dtype=np.int64)
+        order = np.lexsort((candidate_ids, -scores))
+        ranked_positions = np.asarray(candidate_positions, dtype=np.int64)[order]
+        ranked_ids = candidate_ids[order]
+        ranked_scores = scores[order]
         rel = relevant[user_id]
-        top = ranking[:k]
-        recall_values.append(len({item for item, _ in top} & rel) / len(rel))
+        top_ids = ranked_ids[:k]
+        recall_values.append(len(set(top_ids.tolist()) & rel) / len(rel))
         dcg = sum(
             1.0 / math.log2(position + 2)
-            for position, (item_id, _score) in enumerate(top)
+            for position, item_id in enumerate(top_ids.tolist())
             if item_id in rel
         )
         ideal_count = min(k, len(rel))
         idcg = sum(1.0 / math.log2(position + 2) for position in range(ideal_count))
         ndcg_values.append(dcg / idcg if idcg else 0.0)
-        if target_item_id is not None and target_item_id not in excluded.get(user_id, set()):
+        if (
+            target_item_id is not None
+            and target_item_id not in excluded.get(user_id, set())
+            and (target_exposure_users is None or user_id in target_exposure_users)
+        ):
             target_eligible += 1
-            target_rank = next(
-                (position for position, (item, _score) in enumerate(ranking, start=1) if item == target_item_id),
-                None,
-            )
+            target_position = item_index[target_item_id]
+            target_matches = np.flatnonzero(ranked_positions == target_position)
+            target_rank = int(target_matches[0]) + 1 if target_matches.size else None
             if target_rank is not None:
                 target_ranks.append(target_rank)
                 target_exposed += int(target_rank <= k)
+        if user_id == example_user_id:
+            example_ranking = tuple(
+                (int(item), position, float(score))
+                for position, (item, score) in enumerate(zip(ranked_ids[:k], ranked_scores[:k]), start=1)
+            )
+            if target_item_id is not None and target_item_id not in excluded.get(user_id, set()):
+                target_matches = np.flatnonzero(ranked_ids == target_item_id)
+                example_target_rank = int(target_matches[0]) + 1 if target_matches.size else None
 
-    if example_user_id is None and target_item_id is not None:
-        eligible_users = [
-            user_id
-            for user_id in sorted(ranked_by_user)
-            if target_item_id not in excluded.get(user_id, set())
-        ]
-        example_user_id = random.Random(example_seed).choice(eligible_users) if eligible_users else None
-    example = None
-    if example_user_id is not None and example_user_id in ranked_by_user:
-        ranking = ranked_by_user[example_user_id]
-        target_rank = next(
-            (position for position, (item, _score) in enumerate(ranking, start=1) if item == target_item_id),
-            None,
-        ) if target_item_id is not None else None
-        example = RankedExample(
-            user_id=example_user_id,
-            top_k=tuple(
-                (item_id, position, score)
-                for position, (item_id, score) in enumerate(ranking[:k], start=1)
-            ),
-            target_rank=target_rank,
-        )
+    example = (
+        RankedExample(example_user_id, example_ranking, example_target_rank)
+        if example_user_id is not None and example_ranking is not None
+        else None
+    )
 
     metrics: dict[str, float | int | None] = {
         f"ndcg@{k}": sum(ndcg_values) / len(ndcg_values) if ndcg_values else None,

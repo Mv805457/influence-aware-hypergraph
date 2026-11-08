@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import time
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Callable, Sequence
 
 from .data import Interaction
 from .hypergraph import Hypergraph
@@ -137,6 +137,7 @@ def fit_bpr(
     seed: int,
     source_weights: Sequence[float] | None = None,
     initial_theta=None,
+    epoch_callback: Callable[[int, TrainedModel], None] | None = None,
 ) -> TrainedModel:
     """Train the specified linear propagation model with sampled BPR negatives."""
     import numpy as np
@@ -170,8 +171,10 @@ def fit_bpr(
         raise ValueError("a user has no eligible negative item")
 
     rng = np.random.default_rng(seed)
-    propagation = operator.prepare_numpy(
-        source_weights_array if isinstance(operator, Hypergraph) else None
+    propagation = (
+        operator.prepare_numpy(source_weights_array)
+        if isinstance(operator, Hypergraph)
+        else operator.prepare_numpy()
     )
     if initial_theta is None:
         theta = rng.normal(0.0, 0.01, size=(operator.num_vertices, config.dimension)).astype(np.float32)
@@ -260,6 +263,19 @@ def fit_bpr(
             corrected_second = second_moment / (1.0 - beta2**step)
             theta -= config.learning_rate * corrected_first / (np.sqrt(corrected_second) + adam_eps)
         epoch_losses.append(total_loss / max(1, seen_count))
+        if epoch_callback is not None:
+            snapshot = TrainedModel(
+                operator=operator,
+                propagation=propagation,
+                user_ids=user_ids,
+                item_ids=item_ids,
+                theta=theta.copy(),
+                config=config,
+                history={user_id: frozenset(items) for user_id, items in history_mutable.items()},
+                elapsed_seconds=time.perf_counter() - start_time,
+                epoch_losses=tuple(epoch_losses),
+            )
+            epoch_callback(_epoch + 1, snapshot)
 
     return TrainedModel(
         operator=operator,

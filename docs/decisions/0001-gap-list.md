@@ -1,5 +1,7 @@
 # Offline runner inventory and current validity status
 
+Last reviewed: 2026-11-08
+
 ## Implemented locally
 
 - S0 data: SHA-256 allowlisted MovieLens-100K/1M ingestion, positive
@@ -20,35 +22,49 @@
 - S6 influence primitives: differentiable weight-dependent propagation,
   frozen-negative objective, L-BFGS polish, damped CG/Hessian-vector products,
   exposure influence, overlap proximity, and blended suspicion ranking.
+- Single-world offline CLI: five child seed streams, MovieLens-100K E* selection,
+  five-seed G1 with 12-config LightGCN tuning and a development-selected UH
+  profile, paired attack/no-attack/placebo
+  evaluation, G2 enforcement, stage manifests, visible-only staged unlearning,
+  mass/utility rollback guards, recovery, and a static import-boundary check.
+- V1 convex finite-difference influence validation in float64.
+- Optimized full-ranking evaluation with deterministic item-ID tie breaking.
 - Local demo: MovieLens title/genre catalog generation and fixed GET-only
   playback server with strict catalog and result-bundle contracts.
 
-These modules are building blocks, not an end-to-end runner. The code does not
-yet produce a signed, complete run manifest or the source JSON expected by the
-demo bundle exporter.
+The runner writes a complete one-world manifest and writes a demo source export
+only after the currently implemented hard gates pass. No valid main run has
+been produced by this implementation yet.
 
 ## Blocking work before a valid research bundle
 
-- Part 3 proposed defaults have been adopted by the user for new runs and are
-  recorded in decision 0002. Development-selected epoch count, seeds,
-  operating point, and V2/V4 validation thresholds still need preregistration.
-- Implement the staged IAHU executor, collateral guard, recovery, and
-  evaluator-only metrics; plan builders and influence primitives are not yet
-  wired into the executor.
-- Wire G1/G2 and leakage gates into a reproducible runner, add run manifests,
-  and export only completed worlds that pass all validity gates.
-- Implement seeded orchestration, run manifests, resume/validity accounting,
-  comparison baselines, gate enforcement, and a sanitizer-backed exporter.
-- Add numerical, leakage, validation, integration, and repeatability checks
-  for those stages.
+- The CLI is not the complete pre-registered grid: it does not cover all five
+  targets, 300 victim trainings, 552 plan settings, tiered baseline comparisons,
+  bootstrap tables, or interrupted-run resume/replay guarantees.
+- V2 (200 leave-one-source-out cases plus attackers), V3 group comparisons,
+  and V4 placebo indistinguishability are not implemented as a validation
+  campaign. Freeze thresholds before using influence-ranking results as evidence.
+- Exact main seeds, operating-point selection, H3 margin, V2/V4 thresholds,
+  sparse-dataset OQ-1, OQ-2 degree matching, and research hyperparameter tuning
+  still need project preregistration.
+- The original G1 reports used an incomplete candidate mask and are historical
+  diagnostics only. The corrected five-seed G1 also fails the unchanged 5%
+  NDCG-gap gate: its relative mean gap is 11.8563%, while variance, gradient,
+  and reproducibility checks pass. No valid main run or sanitized research
+  bundle exists. Main attack/control worlds are held until a corrected G1
+  passes. The user approved development-only parity calibration; the resulting
+  profile still fails the independent ML-1M G1.
 
 ## Observed diagnostic status (not an accepted result)
 
-An exploratory MovieLens-1M UH/BPR + ATK-3 diagnostic was run locally. Its
-target mean rank improved, but target exposure in Top-20 remained zero, so G2
-did not pass. It did not run the complete IAHU method or all required
-acceptance gates. The diagnostic was not saved as a completed run and is not
-exported to the demo bundle.
+An exploratory MovieLens-1M UH/BPR + ATK-3 diagnostic was run before the new
+runner. Its target mean rank improved, but target exposure in Top-20 remained
+zero, so G2 did not pass. It is not a valid run and is not exported.
+
+The new V1 convex validation passed with maximum source relative error
+`2.06e-10`. E* and UH-profile selection scores are saved under ignored
+`results/preregistration/`; see decision 0003. Neither result implies that G1
+or G2 passes on MovieLens-1M.
 
 ## Data handling
 
