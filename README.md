@@ -36,23 +36,24 @@ archive as research data.
   --output results/preregistration/e-star-ml-100k.json
 ```
 
-2. Select the UH/BPR profile on five MovieLens-100K development worlds. It
-uses the guide's 12-setting grid for dimension, propagation layers, and learning
-rate while keeping regularization and batch size fixed:
+2. Select the UH/BPR profile on five fresh MovieLens-100K development worlds.
+The approved expanded grid has 108 settings across dimension `{32,64,128}`,
+layers `{1,2,3}`, learning rate `{0.0003,0.001,0.003,0.01}`, and regularization
+`{0.00001,0.0001,0.001}`; batch size stays fixed:
 
 ```powershell
 $epochs = (Get-Content results/preregistration/e-star-ml-100k.json | ConvertFrom-Json).selected_epochs
 & $py -B -m iahu.runner select-uh-config `
   --archive results/datasets/ml-100k.zip `
   --epochs $epochs `
-  --parent-seed 20261111 `
-  --output results/preregistration/uh-profile-ml-100k.json
+  --parent-seed 20261112 `
+  --output results/preregistration/uh-profile-v2-ml-100k.json
 ```
 
-The command writes a progress file alongside the profile while the 60
-development fits run. Then rerun the clean-model gate on five paired
-MovieLens-1M worlds. The existing local G1 report already contains the
-matching LightGCN 12-config results for these seeds, so `--reuse-lightgcn-from`
+The command writes a progress file alongside the profile while the 540
+development fits run. Then rerun the clean-model gate on the same five paired
+MovieLens-1M worlds. The existing local G1 report contains the matching
+LightGCN 12-config results for these seeds, so `--reuse-lightgcn-from`
 reuses only those comparison values and refits UH with the newly selected
 profile. Omit that option to repeat the full LightGCN search:
 
@@ -61,9 +62,9 @@ profile. Omit that option to repeat the full LightGCN search:
   --archive results/datasets/ml-1m.zip `
   --epochs $epochs `
   --parent-seed 20261109 `
-  --uh-profile results/preregistration/uh-profile-ml-100k.json `
+  --uh-profile results/preregistration/uh-profile-v2-ml-100k.json `
   --reuse-lightgcn-from results/gates/g1-ml-1m.json `
-  --output results/gates/g1-ml-1m-profiled.json
+  --output results/gates/g1-ml-1m-profiled-v2.json
 ```
 
 While G1 runs, its latest candidate and completed-seed counts are written to
@@ -71,10 +72,12 @@ While G1 runs, its latest candidate and completed-seed counts are written to
 removed after the final report is saved.
 
 The G1 command returns exit code 3 when its gate fails, while preserving the
-report. In this checkout, the saved development profile yields a 6.07% NDCG
-gap against the 5% limit, so **do not run step 4 or claim a valid demo run**
-until an approved development-only profile passes G1. The main-run gate also
-checks the exact profile hash and settings.
+report. The first profile yielded a 6.07% NDCG gap; the expanded profile
+selected by highest development NDCG yielded a 32.49% gap against the 5%
+limit. Both fail G1. **Do not run step 4** until a development-selected UH
+profile passes. A parity-based development selection rule needs a separate
+research decision. The main-run gate also checks the exact profile hash and
+settings.
 
 3. Run the hard convex influence validation:
 
@@ -93,8 +96,8 @@ and ATK-3 at the 3% attack size:
   --attack atk3_popularity `
   --alpha 0.03 `
   --construction user_history `
-  --uh-profile results/preregistration/uh-profile-ml-100k.json `
-  --g1-report results/gates/g1-ml-1m-profiled.json
+  --uh-profile results/preregistration/uh-profile-v2-ml-100k.json `
+  --g1-report results/gates/g1-ml-1m-profiled-v2.json
 ```
 
 Every attempted world writes a manifest under `results/runs/`. Failed gates
