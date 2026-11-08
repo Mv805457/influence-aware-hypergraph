@@ -23,7 +23,8 @@ Last reviewed: 2026-11-08
   frozen-negative objective, L-BFGS polish, damped CG/Hessian-vector products,
   exposure influence, overlap proximity, and blended suspicion ranking.
 - Single-world offline CLI: five child seed streams, MovieLens-100K E* selection,
-  five-seed G1 with 12-config LightGCN tuning, paired attack/no-attack/placebo
+  five-seed G1 with 12-config LightGCN tuning and a development-selected UH
+  profile, paired attack/no-attack/placebo
   evaluation, G2 enforcement, stage manifests, visible-only staged unlearning,
   mass/utility rollback guards, recovery, and a static import-boundary check.
 - V1 convex finite-difference influence validation in float64.
@@ -46,9 +47,9 @@ been produced by this implementation yet.
 - Exact main seeds, operating-point selection, H3 margin, V2/V4 thresholds,
   sparse-dataset OQ-1, OQ-2 degree matching, and research hyperparameter tuning
   still need project preregistration.
-- Run the MovieLens-1M G1 command and main attack/control worlds. The current
-  local state has no passing G1 report, no valid main run, and no sanitized
-  research bundle.
+- The profiled MovieLens-1M G1 still fails its unchanged 5% NDCG-gap gate; no
+  valid main run or sanitized research bundle exists. Main attack/control
+  worlds are held until G1 passes.
 
 ## Observed diagnostic status (not an accepted result)
 
@@ -57,8 +58,9 @@ runner. Its target mean rank improved, but target exposure in Top-20 remained
 zero, so G2 did not pass. It is not a valid run and is not exported.
 
 The new V1 convex validation passed with maximum source relative error
-`2.06e-10`. E* selection scores are saved under ignored `results/preregistration/`;
-see decision 0003. Neither result implies that G1 or G2 passes on MovieLens-1M.
+`2.06e-10`. E* and UH-profile selection scores are saved under ignored
+`results/preregistration/`; see decision 0003. Neither result implies that G1
+or G2 passes on MovieLens-1M.
 
 ## Data handling
 
