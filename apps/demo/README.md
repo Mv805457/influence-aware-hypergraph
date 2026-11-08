@@ -16,9 +16,9 @@ an original film-journal design and does not use Letterboxd branding or assets.
 - Python 3.10 or newer. On Windows, use the official CPython distribution; an
   MSYS Python can work for the app itself, but may not support the numerical
   wheels required by research modules.
-- Install `requirements.txt` into the Python environment used for offline
-  research. The read-only app and catalog exporter use only the standard
-  library.
+- The read-only app and catalog exporter use only the standard library. For
+  numerical research code, create a Windows CPython environment and install
+  `requirements.txt` as shown under Checks.
 - Download MovieLens directly from GroupLens. The dataset archive stays local
   under the ignored `results/datasets/` directory and is checked against the
   repository's SHA-256 allowlist.
@@ -81,7 +81,10 @@ python -B -m unittest tests.test_demo tests.test_movie_catalog -v
 Full numerical and demo checks, after installing the research requirements:
 
 ```powershell
-python -m pip install -r requirements.txt
+uv python install 3.12
+uv venv --python 3.12 .venv
+.\.venv\Scripts\Activate.ps1
+uv pip install -r requirements.txt
 $env:PYTHONPATH = 'src'
 python -B -m unittest discover -s tests -v
 node --check apps/demo/app.js

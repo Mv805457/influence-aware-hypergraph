@@ -30,7 +30,10 @@ for the demo boundary.
 ## Tests
 
 ```powershell
-python -m pip install -r requirements.txt
+uv python install 3.12
+uv venv --python 3.12 .venv
+.\.venv\Scripts\Activate.ps1
+uv pip install -r requirements.txt
 $env:PYTHONPATH = 'src'
 python -B -m unittest discover -s tests -v
 node --check apps/demo/app.js
