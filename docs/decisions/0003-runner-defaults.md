@@ -42,6 +42,14 @@ in run manifests and must be reviewed before external research claims:
 - The current development selection uses parent seed `20261108`; the G1 command
   uses parent seed `20261109`; the documented example main world uses parent
   seed `20261110` so the development, gate, and example main streams differ.
+- The initial guide UH/BPR values are starting settings. The runner now has an
+  explicit 12-setting dimension/layer/learning-rate selection on five
+  MovieLens-100K development worlds at the frozen E*, with batch size and
+  regularization fixed. Main worlds and G1 must carry the resulting profile;
+  they reject profiles trained on a different dataset, fixed epoch count, or
+  setting grid. The current MovieLens-1M LightGCN comparison report can be
+  reused only when its dataset hash, E*, parent seed, five world seeds, and
+  12-setting budget match exactly.
 
 ## Executed development validation
 
@@ -49,6 +57,17 @@ in run manifests and must be reviewed before external research claims:
   development worlds, considering epochs 1–20. **E* = 3** by mean validation
   NDCG@20 (`0.1574728679`); the complete score table and independent child
   seeds are saved in ignored `results/preregistration/e-star-ml-100k.json`.
+- UH/BPR selection used the documented 12-setting grid on five separate
+  MovieLens-100K development worlds at E*=3. It selected dimension 64, one
+  propagation layer, learning rate 0.003, regularization 0.0001, and batch
+  size 4096 (mean validation NDCG@20 `0.1772994602`). The full table is saved
+  in ignored `results/preregistration/uh-profile-ml-100k.json`.
+- The profiled G1 was rerun on the original five paired MovieLens-1M seeds,
+  reusing the exact prior LightGCN comparison results. Mean UH NDCG@20 was
+  `0.1212943491` versus `0.1291315584` for LightGCN, a 6.07% relative gap
+  against the unchanged 5% limit. Variance (2.26%), finite-difference gradient
+  (1.26e-7), and same-seed reproducibility checks passed; G1 remains failed.
+  The full report is ignored at `results/gates/g1-ml-1m-profiled.json`.
 - V1 uses a convex SPD quadratic toy and compares the production CG/implicit
   derivative path with exact solve-based retraining. The local run passed with
   maximum source relative error `2.06e-10`; report saved at
@@ -56,9 +75,11 @@ in run manifests and must be reviewed before external research claims:
 
 ## Still open or not yet run
 
-- The clean-model G1 on MovieLens-1M and any main attack worlds must be run
-  before the research pipeline can write a valid completed-run export. Their
-  outcome is empirical and not assumed here.
+- Both the original G1 (13.06% gap) and the development-profiled G1 (6.07%
+  gap) fail the relative NDCG gate. Do not run a main-candidate attack against
+  a failed G1. A new profiling decision would require development-only tuning
+  with its full candidate set recorded; do not weaken the G1 threshold. G2 is
+  an empirical attack strength gate and is not changed to make a world pass.
 - V2 (200 leave-one-source-out cases plus attackers), V3 group-removal
   validation, and V4 placebo distinguishability are not implemented as a full
   validation campaign yet. Their thresholds were not stated in the guide; no
