@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 import sys
 import json
+from dataclasses import asdict
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -14,6 +15,8 @@ from iahu.model import BPRConfig
 from iahu.runner import (
     _g1_report_passes_for_run,
     _read_uh_profile,
+    _restore_uh_progress,
+    _uh_development_grid,
     check_unlearning_import_boundary,
     spawn_seed_streams,
     _visible_split,
@@ -54,23 +57,18 @@ class InformationBoundaryTests(unittest.TestCase):
 class DevelopmentProfileTests(unittest.TestCase):
     def _write_profile(self, directory: Path, **overrides: object) -> Path:
         allowlist = json.loads((ROOT / "configs" / "datasets.json").read_text(encoding="utf-8"))
-        selected_config = {
-            "dimension": 32,
-            "layers": 1,
-            "learning_rate": 0.001,
-            "regularization": BPRConfig().regularization,
-            "batch_size": BPRConfig().batch_size,
-            "epochs": 3,
-        }
+        candidates = [asdict(candidate) for candidate in _uh_development_grid(3)]
+        selected_config = candidates[0]
         profile = {
             "schema_version": 1,
             "dataset": "ml-100k",
             "dataset_sha256": allowlist["datasets"]["ml-100k"]["sha256"],
             "tier": "development_only",
             "fixed_epochs": 3,
+            "grid_id": "uh-bpr-development-v2-108",
             "selected_config": selected_config,
             "uh_config": selected_config.copy(),
-            "candidate_configs": [selected_config.copy()],
+            "candidate_configs": candidates,
         }
         profile.update(overrides)
         path = directory / "uh-profile.json"
@@ -80,7 +78,7 @@ class DevelopmentProfileTests(unittest.TestCase):
     def test_reads_pinned_development_profile(self) -> None:
         with tempfile.TemporaryDirectory(dir=ROOT / "tests") as directory:
             config = _read_uh_profile(self._write_profile(Path(directory)), epochs=3)
-        self.assertEqual(config, BPRConfig(dimension=32, layers=1, learning_rate=0.001, epochs=3))
+        self.assertEqual(config, _uh_development_grid(3)[0])
 
     def test_rejects_wrong_epoch_tier_or_out_of_grid_profile(self) -> None:
         with tempfile.TemporaryDirectory(dir=ROOT / "tests") as directory:
@@ -106,7 +104,7 @@ class DevelopmentProfileTests(unittest.TestCase):
             self._write_profile(
                 Path(directory),
                 selected_config={
-                    "dimension": 128,
+                    "dimension": 256,
                     "layers": 1,
                     "learning_rate": 0.001,
                     "regularization": BPRConfig().regularization,
@@ -114,7 +112,7 @@ class DevelopmentProfileTests(unittest.TestCase):
                     "epochs": 3,
                 },
             )
-            with self.assertRaisesRegex(ValueError, "outside the documented"):
+            with self.assertRaisesRegex(ValueError, "outside the approved"):
                 _read_uh_profile(path, epochs=3)
 
     def test_g1_must_match_the_profile_used_by_main_world(self) -> None:
@@ -140,6 +138,38 @@ class DevelopmentProfileTests(unittest.TestCase):
         self.assertFalse(_g1_report_passes_for_run(
             report, epochs=3, uh_config=config, uh_profile_sha256="c" * 64,
         ))
+
+    def test_uh_search_progress_restores_only_a_complete_matching_prefix(self) -> None:
+        configs = _uh_development_grid(3)
+        world_seeds = [11, 22]
+        saved = {
+            "status": "running",
+            "dataset": "ml-100k",
+            "dataset_sha256": "a" * 64,
+            "parent_seed": 19,
+            "fixed_epochs": 3,
+            "required_models": len(configs) * len(world_seeds),
+            "completed_models": len(configs) + 2,
+            "grid_id": "uh-bpr-development-v2-108",
+            "world_seeds": world_seeds,
+            "validation_ndcg_at_20_by_config": {
+                str(index): [0.1] * (2 if index < 2 else 1)
+                for index in range(len(configs))
+            },
+        }
+        completed, restored = _restore_uh_progress(
+            saved, dataset="ml-100k", dataset_sha256="a" * 64, parent_seed=19,
+            epochs=3, configs=configs, world_seeds=world_seeds,
+        )
+        self.assertEqual(completed, len(configs) + 2)
+        self.assertEqual(len(restored["0"]), 2)
+        self.assertEqual(len(restored["2"]), 1)
+        saved["parent_seed"] = 20
+        with self.assertRaisesRegex(ValueError, "does not match"):
+            _restore_uh_progress(
+                saved, dataset="ml-100k", dataset_sha256="a" * 64, parent_seed=19,
+                epochs=3, configs=configs, world_seeds=world_seeds,
+            )
 
 
 if __name__ == "__main__":
