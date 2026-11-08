@@ -292,12 +292,179 @@ def select_fixed_epochs(
     }
 
 
+def select_uh_hyperparameters(
+    archive_path: Path,
+    *,
+    epochs: int,
+    parent_seed: int = 20261111,
+    development_worlds: int = 5,
+    progress_path: Path | None = None,
+) -> dict[str, Any]:
+    """Select starting UH/BPR settings on development worlds, never on ML-1M."""
+    if epochs < 1 or development_worlds < 2:
+        raise ValueError("epochs must be positive and at least two development worlds are required")
+    data = load_dataset(archive_path, expected_name="ml-100k")
+    positive = binarize_and_k_core(data.interactions)
+    children = np.random.SeedSequence(parent_seed).spawn(development_worlds)
+    world_parents = [int(child.generate_state(1, dtype=np.uint32)[0]) for child in children]
+    streams = [spawn_seed_streams(seed) for seed in world_parents]
+    configs = [
+        BPRConfig(dimension=dimension, layers=layers, learning_rate=learning_rate, epochs=epochs)
+        for dimension in (32, 64)
+        for layers in (1, 2, 3)
+        for learning_rate in (1e-3, 3e-3)
+    ]
+    scores: dict[str, list[float]] = {str(index): [] for index in range(len(configs))}
+    started = time.perf_counter()
+    completed_configs = 0
+    for world_index, seed_set in enumerate(streams, start=1):
+        split = split_per_user(positive, world_seed=seed_set.world)
+        train, _hidden_v, _ = _visible_split(split.train, seed=seed_set.world)
+        graph = build_user_history(train)
+        for index, config in enumerate(configs):
+            model = fit_bpr(graph, train, config=config, seed=seed_set.training)
+            evaluation = evaluate_full_ranking(
+                model,
+                heldout_rows=split.validation,
+                excluded_rows=train,
+                k=20,
+                example_seed=seed_set.world,
+            )
+            score = evaluation.metrics.get("ndcg@20")
+            if score is not None:
+                scores[str(index)].append(float(score))
+            completed_configs += 1
+            if progress_path is not None:
+                _atomic_json(progress_path, {
+                    "schema_version": 1,
+                    "status": "running",
+                    "completed_models": completed_configs,
+                    "required_models": len(streams) * len(configs),
+                    "current_development_world": world_index,
+                    "current_config": index + 1,
+                    "dataset": data.dataset,
+                    "dataset_sha256": data.archive_sha256,
+                    "parent_seed": parent_seed,
+                    "fixed_epochs": epochs,
+                    "validation_ndcg_at_20_by_config": scores,
+                })
+    means = {
+        str(index): float(np.mean(scores[str(index)])) if scores[str(index)] else None
+        for index in range(len(configs))
+    }
+    eligible = [(value, -index) for index, value in enumerate(means.values()) if value is not None]
+    if not eligible:
+        raise RuntimeError("UH development profile produced no validation scores")
+    selected_score, negative_index = max(eligible)
+    selected_index = -negative_index
+    selected_config = configs[selected_index]
+    return {
+        "schema_version": 1,
+        "profile": "UH/BPR hyperparameters selected on MovieLens-100K validation NDCG@20",
+        "dataset": data.dataset,
+        "dataset_sha256": data.archive_sha256,
+        "parent_seed": parent_seed,
+        "world_seeds": [seed.world for seed in streams],
+        "seed_streams": [asdict(seed) for seed in streams],
+        "development_worlds": development_worlds,
+        "fixed_epochs": epochs,
+        "uh_config": asdict(BPRConfig(
+            dimension=selected_config.dimension,
+            layers=selected_config.layers,
+            learning_rate=selected_config.learning_rate,
+            regularization=selected_config.regularization,
+            batch_size=selected_config.batch_size,
+            epochs=epochs,
+        )),
+        "candidate_configs": [asdict(config) for config in configs],
+        "validation_ndcg_at_20_by_config": scores,
+        "mean_validation_ndcg_at_20_by_config": means,
+        "selected_config": asdict(selected_config),
+        "selected_validation_ndcg_at_20": float(selected_score),
+        "elapsed_seconds": time.perf_counter() - started,
+        "tier": "development_only",
+        "assumptions": ["12-config grid shared with the clean LightGCN gate; regularization and batch size fixed to BPRConfig defaults"],
+    }
+
+
+def _read_uh_profile(path: Path, *, epochs: int) -> BPRConfig:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("UH profile root must be a JSON object")
+    if value.get("schema_version") != 1 or value.get("dataset") != "ml-100k":
+        raise ValueError("UH profile must be a MovieLens-100K development selection")
+    allowlist = json.loads((ROOT / "configs" / "datasets.json").read_text(encoding="utf-8"))
+    if value.get("dataset_sha256") != allowlist["datasets"]["ml-100k"]["sha256"]:
+        raise ValueError("UH profile dataset hash does not match the pinned MovieLens-100K archive")
+    if value.get("tier") != "development_only" or value.get("fixed_epochs") != epochs:
+        raise ValueError("UH profile must be development-only and use the run's fixed epoch count")
+    selected = value.get("selected_config")
+    if not isinstance(selected, dict):
+        raise ValueError("UH profile has no selected_config")
+    for field in ("dimension", "layers", "batch_size"):
+        field_value = selected.get(field)
+        if isinstance(field_value, bool) or not isinstance(field_value, int):
+            raise ValueError(f"UH profile selected_config.{field} must be an integer")
+    for field in ("learning_rate", "regularization"):
+        field_value = selected.get(field)
+        if isinstance(field_value, bool) or not isinstance(field_value, (int, float)):
+            raise ValueError(f"UH profile selected_config.{field} must be numeric")
+    if selected.get("epochs") != epochs:
+        raise ValueError("UH selected_config must use the profile's fixed epoch count")
+    config = BPRConfig(
+        dimension=selected.get("dimension"),
+        layers=selected.get("layers"),
+        learning_rate=selected.get("learning_rate"),
+        regularization=selected.get("regularization"),
+        batch_size=selected.get("batch_size"),
+        epochs=epochs,
+    )
+    config.validate()
+    allowed = {
+        (dimension, layers, learning_rate)
+        for dimension in (32, 64)
+        for layers in (1, 2, 3)
+        for learning_rate in (1e-3, 3e-3)
+    }
+    if (config.dimension, config.layers, config.learning_rate) not in allowed:
+        raise ValueError("UH profile selected a setting outside the documented 12-config grid")
+    if config.regularization != BPRConfig().regularization or config.batch_size != BPRConfig().batch_size:
+        raise ValueError("UH profile regularization and batch size must use the documented fixed defaults")
+    if value.get("uh_config") != asdict(config):
+        raise ValueError("UH profile's selected_config and uh_config disagree")
+    candidates = value.get("candidate_configs")
+    if not isinstance(candidates, list) or asdict(config) not in candidates:
+        raise ValueError("UH selected_config is absent from the recorded development candidate grid")
+    return config
+
+
+def _g1_report_passes_for_run(
+    report: dict[str, Any],
+    *,
+    epochs: int,
+    uh_config: BPRConfig,
+    uh_profile_sha256: str,
+) -> bool:
+    allowlist = json.loads((ROOT / "configs" / "datasets.json").read_text(encoding="utf-8"))
+    return bool(
+        report.get("gate", {}).get("passed", False)
+        and report.get("dataset") == "ml-1m"
+        and report.get("dataset_sha256") == allowlist["datasets"]["ml-1m"]["sha256"]
+        and report.get("fixed_epochs") == epochs
+        and report.get("uh_config") == asdict(uh_config)
+        and report.get("uh_profile_sha256") == uh_profile_sha256
+    )
+
+
 def run_clean_gate(
     archive_path: Path,
     *,
     epochs: int,
     parent_seed: int,
     output_path: Path,
+    uh_config: BPRConfig,
+    uh_profile_sha256: str,
+    baseline_report_path: Path | None = None,
     baseline_configs: int = 12,
 ) -> dict[str, Any]:
     """Run five paired clean seeds and a 12-configuration LightGCN tune."""
@@ -318,6 +485,39 @@ def run_clean_gate(
     uh_values: list[float] = []
     baseline_values: list[float] = []
     picked_configs: list[dict[str, int | float]] = []
+    baseline_report_sha256: str | None = None
+    if baseline_report_path is not None:
+        baseline_report = json.loads(baseline_report_path.read_text(encoding="utf-8"))
+        expected_world_seeds = [seed.world for seed in seed_streams]
+        if (
+            baseline_report.get("dataset") != data.dataset
+            or baseline_report.get("dataset_sha256") != data.archive_sha256
+            or baseline_report.get("fixed_epochs") != epochs
+            or baseline_report.get("parent_seed") != parent_seed
+            or baseline_report.get("world_seeds") != expected_world_seeds
+            or baseline_report.get("baseline_configuration_budget") != baseline_configs
+        ):
+            raise ValueError("baseline report does not match the dataset, E*, five seeds, and 12-config budget")
+        baseline_values = [float(value) for value in baseline_report.get("tuned_lightgcn_ndcg_at_20", [])]
+        picked_configs = list(baseline_report.get("selected_lightgcn_configs", []))
+        if len(baseline_values) != 5 or len(picked_configs) != 5:
+            raise ValueError("baseline report must contain five LightGCN test scores and selected configs")
+        if any(not math.isfinite(value) for value in baseline_values):
+            raise ValueError("baseline report contains a non-finite LightGCN test score")
+        allowed_lightgcn = {
+            (dimension, layers, learning_rate)
+            for dimension in (32, 64)
+            for layers in (1, 2, 3)
+            for learning_rate in (1e-3, 3e-3)
+        }
+        for selected in picked_configs:
+            try:
+                key = (int(selected["dimension"]), int(selected["layers"]), float(selected["learning_rate"]))
+            except (KeyError, TypeError, ValueError) as error:
+                raise ValueError("baseline report contains an invalid selected LightGCN config") from error
+            if key not in allowed_lightgcn:
+                raise ValueError("baseline report selected a LightGCN config outside the fixed 12-config grid")
+        baseline_report_sha256 = hashlib.sha256(baseline_report_path.read_bytes()).hexdigest()
     train_timings: list[dict[str, float]] = []
     repeat_delta = 0.0
     start_all = time.perf_counter()
@@ -330,14 +530,45 @@ def run_clean_gate(
         excluded_val = train
         test_excluded = train + split.validation
 
-        uh_config = BPRConfig(epochs=epochs)
-        uh = _train_model("user_history", train, seed=streams.training, config=uh_config)
+        fixed_uh_config = BPRConfig(
+            dimension=uh_config.dimension,
+            layers=uh_config.layers,
+            learning_rate=uh_config.learning_rate,
+            regularization=uh_config.regularization,
+            batch_size=uh_config.batch_size,
+            epochs=epochs,
+        )
+        uh = _train_model("user_history", train, seed=streams.training, config=fixed_uh_config)
         uh_test = evaluate_full_ranking(
             uh, heldout_rows=split.test, excluded_rows=test_excluded, k=20,
             example_seed=world_seed,
         )
         uh_values.append(_metric(uh_test, "ndcg@20"))
         train_timings.append({"hypergraph_seconds": uh.elapsed_seconds})
+
+        if baseline_report_path is not None:
+            if seed_index == 0:
+                duplicate = _train_model("user_history", train, seed=streams.training, config=fixed_uh_config)
+                repeat_delta = float(np.max(np.abs(uh.theta - duplicate.theta)))
+            partial = {
+                "schema_version": 1,
+                "status": "running",
+                "completed_seeds": seed_index + 1,
+                "required_seeds": 5,
+                "dataset": data.dataset,
+                "dataset_sha256": data.archive_sha256,
+                "parent_seed": parent_seed,
+                "world_seeds": [seed.world for seed in seed_streams[:seed_index + 1]],
+                "fixed_epochs": epochs,
+                "uh_config": asdict(fixed_uh_config),
+                "hypergraph_ndcg_at_20": uh_values,
+                "tuned_lightgcn_ndcg_at_20": baseline_values,
+                "baseline_reused_from_report_sha256": baseline_report_sha256,
+                "elapsed_seconds": time.perf_counter() - start_all,
+            }
+            _atomic_json(progress_path, partial)
+            print(f"G1 tuned UH seed {seed_index + 1}/5 complete", flush=True)
+            continue
 
         # Tune on Val_B only, then record the chosen candidate on Test_B.
         best_model: TrainedModel | None = None
@@ -399,7 +630,7 @@ def run_clean_gate(
         })
 
         if seed_index == 0:
-            duplicate = _train_model("user_history", train, seed=streams.training, config=uh_config)
+            duplicate = _train_model("user_history", train, seed=streams.training, config=fixed_uh_config)
             repeat_delta = float(np.max(np.abs(uh.theta - duplicate.theta)))
         partial = {
             "schema_version": 1,
@@ -411,6 +642,7 @@ def run_clean_gate(
             "parent_seed": parent_seed,
             "world_seeds": [seed.world for seed in seed_streams[: seed_index + 1]],
             "fixed_epochs": epochs,
+            "uh_config": asdict(fixed_uh_config),
             "hypergraph_ndcg_at_20": uh_values,
             "tuned_lightgcn_ndcg_at_20": baseline_values,
             "selected_lightgcn_configs": picked_configs,
@@ -441,6 +673,8 @@ def run_clean_gate(
         "world_seeds": [seed.world for seed in seed_streams],
         "seed_streams": [asdict(seed) for seed in seed_streams],
         "fixed_epochs": epochs,
+        "uh_config": asdict(fixed_uh_config),
+        "uh_profile_sha256": uh_profile_sha256,
         "hypergraph_ndcg_at_20": uh_values,
         "tuned_lightgcn_ndcg_at_20": baseline_values,
         "selected_lightgcn_configs": picked_configs,
@@ -448,6 +682,7 @@ def run_clean_gate(
         "same_seed_max_parameter_difference": repeat_delta,
         "repeat_tolerance": 1e-6,
         "baseline_configuration_budget": baseline_configs,
+        "baseline_reused_from_report_sha256": baseline_report_sha256,
         "runtime_versions": _runtime_versions(),
         "hardware": platform.platform(),
         "git_commit": _git_commit(),
@@ -491,6 +726,8 @@ def _run_world(
     dataset_name: str,
     parent_seed: int,
     epochs: int,
+    uh_config: BPRConfig,
+    uh_profile_sha256: str,
     attack_rule: str,
     attack_rate: float,
     target_item_id: int | None,
@@ -506,6 +743,14 @@ def _run_world(
     exploratory: bool,
 ) -> dict[str, Any]:
     streams = spawn_seed_streams(parent_seed)
+    world_bpr_config = BPRConfig(
+        dimension=uh_config.dimension,
+        layers=uh_config.layers,
+        learning_rate=uh_config.learning_rate,
+        regularization=uh_config.regularization,
+        batch_size=uh_config.batch_size,
+        epochs=epochs,
+    )
     run_config = {
         "dataset": dataset_name,
         "parent_seed": parent_seed,
@@ -521,7 +766,8 @@ def _run_world(
         "false_positive_strategy": false_positive_strategy,
         "confidence_mode": confidence_mode,
         "visible_validation_fraction": 0.05,
-        "bpr": asdict(BPRConfig(epochs=epochs)),
+        "bpr": asdict(world_bpr_config),
+        "uh_profile_sha256": uh_profile_sha256,
         "tier": "exploratory" if exploratory else "main_candidate",
     }
     config_hash = _json_digest(run_config)
@@ -563,6 +809,8 @@ def _run_world(
         if target not in selected_targets:
             raise DatasetError("target item must be one of the five seeded lower-popularity targets")
         manifest["dataset_sha256"] = data.archive_sha256
+        manifest["selected_target_item_id"] = target
+        manifest["selected_target_candidates"] = list(selected_targets)
         manifest["data_counts"] = {
             "positive_interactions": len(positive),
             "benign_train_interactions": len(split.train),
@@ -609,7 +857,7 @@ def _run_world(
         reference_graph_elapsed = time.perf_counter() - reference_graph_start
         reference = fit_bpr(
             reference_graph, reference_rows, seed=streams.training,
-            config=BPRConfig(epochs=epochs),
+            config=world_bpr_config,
         )
         evaluation_start = time.perf_counter()
         ref_eval = evaluate_full_ranking(
@@ -625,7 +873,7 @@ def _run_world(
         poisoned_graph = _operator(construction, visible_rows, seed=streams.training)
         poisoned_graph_elapsed = time.perf_counter() - poisoned_graph_start
         poisoned = fit_bpr(
-            poisoned_graph, visible_rows, config=BPRConfig(epochs=epochs), seed=streams.training,
+            poisoned_graph, visible_rows, config=world_bpr_config, seed=streams.training,
         )
         evaluation_start = time.perf_counter()
         poisoned_eval = evaluate_full_ranking(
@@ -655,7 +903,7 @@ def _run_world(
         )
         no_attack_graph = _operator(construction, no_attack_visible, seed=streams.training)
         no_attack_model = fit_bpr(
-            no_attack_graph, no_attack_visible, config=BPRConfig(epochs=epochs), seed=streams.training,
+            no_attack_graph, no_attack_visible, config=world_bpr_config, seed=streams.training,
         )
         no_attack_eval = evaluate_full_ranking(
             no_attack_model,
@@ -674,7 +922,7 @@ def _run_world(
         )
         placebo_graph = _operator(construction, placebo_visible, seed=streams.training)
         placebo_model = fit_bpr(
-            placebo_graph, placebo_visible, config=BPRConfig(epochs=epochs), seed=streams.training,
+            placebo_graph, placebo_visible, config=world_bpr_config, seed=streams.training,
         )
         placebo_eval = evaluate_full_ranking(
             placebo_model,
@@ -693,10 +941,11 @@ def _run_world(
         _atomic_json(run_dir / "manifest.json", manifest)
 
         g1 = json.loads(g1_report_path.read_text(encoding="utf-8"))
-        g1_passed = (
-            bool(g1.get("gate", {}).get("passed", False))
-            and g1.get("dataset") == "ml-1m"
-            and g1.get("fixed_epochs") == epochs
+        g1_passed = _g1_report_passes_for_run(
+            g1,
+            epochs=epochs,
+            uh_config=world_bpr_config,
+            uh_profile_sha256=uh_profile_sha256,
         )
         v1_report_path = GATES / "v1-convex.json"
         v1 = json.loads(v1_report_path.read_text(encoding="utf-8")) if v1_report_path.is_file() else {}
@@ -850,7 +1099,7 @@ def _run_world(
         retrain = fit_bpr(
             retrain_graph,
             unflagged_visible_rows,
-            config=BPRConfig(epochs=epochs),
+            config=world_bpr_config,
             seed=streams.training,
         )
         retrain_elapsed = time.perf_counter() - retrain_start
@@ -1124,11 +1373,25 @@ def main(argv: list[str] | None = None) -> int:
     select.add_argument("--max-epochs", type=int, default=20)
     select.add_argument("--output", type=Path, default=PREREG / "e-star-ml-100k.json")
 
+    tune_uh = subparsers.add_parser(
+        "select-uh-config", help="select UH/BPR settings on MovieLens-100K development worlds"
+    )
+    tune_uh.add_argument("--archive", type=Path, required=True)
+    tune_uh.add_argument("--epochs", type=int, required=True)
+    tune_uh.add_argument("--parent-seed", type=int, default=20261111)
+    tune_uh.add_argument("--development-worlds", type=int, default=5)
+    tune_uh.add_argument("--output", type=Path, default=PREREG / "uh-profile-ml-100k.json")
+
     gate = subparsers.add_parser("g1", help="run the clean-model gate on MovieLens-1M")
     gate.add_argument("--archive", type=Path, required=True)
     gate.add_argument("--epochs", type=int, required=True)
     gate.add_argument("--parent-seed", type=int, default=20261108)
     gate.add_argument("--output", type=Path, default=GATES / "g1-ml-1m.json")
+    gate.add_argument("--uh-profile", type=Path, default=PREREG / "uh-profile-ml-100k.json")
+    gate.add_argument(
+        "--reuse-lightgcn-from", type=Path,
+        help="reuse the five fixed-seed LightGCN results from a compatible prior G1 report",
+    )
 
     v1 = subparsers.add_parser("v1", help="run the hard convex influence validation")
     v1.add_argument("--output", type=Path, default=GATES / "v1-convex.json")
@@ -1138,6 +1401,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--dataset", choices=("ml-100k", "ml-1m"), default="ml-1m")
     run.add_argument("--parent-seed", type=int, required=True)
     run.add_argument("--e-star", type=Path, default=PREREG / "e-star-ml-100k.json")
+    run.add_argument("--uh-profile", type=Path, default=PREREG / "uh-profile-ml-100k.json")
     run.add_argument("--attack", choices=("atk1_random", "atk2_bandwagon", "atk3_popularity", "atk4_coordinated", "atk5_overlap_minimizing"), default="atk3_popularity")
     run.add_argument("--alpha", type=float, choices=(0.01, 0.03), default=0.03)
     run.add_argument("--target-item", type=int)
@@ -1162,12 +1426,28 @@ def main(argv: list[str] | None = None) -> int:
                 max_epochs=args.max_epochs,
             )
             _atomic_json(args.output, report)
+        elif args.command == "select-uh-config":
+            progress_path = args.output.with_suffix(args.output.suffix + ".progress.json")
+            report = select_uh_hyperparameters(
+                args.archive,
+                epochs=args.epochs,
+                parent_seed=args.parent_seed,
+                development_worlds=args.development_worlds,
+                progress_path=progress_path,
+            )
+            _atomic_json(args.output, report)
+            if progress_path.is_file():
+                progress_path.unlink()
         elif args.command == "g1":
+            uh_config = _read_uh_profile(args.uh_profile, epochs=args.epochs)
             report = run_clean_gate(
                 args.archive,
                 epochs=args.epochs,
                 parent_seed=args.parent_seed,
                 output_path=args.output,
+                uh_config=uh_config,
+                uh_profile_sha256=hashlib.sha256(args.uh_profile.read_bytes()).hexdigest(),
+                baseline_report_path=args.reuse_lightgcn_from,
             )
         elif args.command == "v1":
             result = validate_v1_convex_influence()
@@ -1185,11 +1465,14 @@ def main(argv: list[str] | None = None) -> int:
             _atomic_json(args.output, report)
         else:
             epochs = _read_e_star(args.e_star)
+            uh_config = _read_uh_profile(args.uh_profile, epochs=epochs)
             report = _run_world(
                 args.archive,
                 dataset_name=args.dataset,
                 parent_seed=args.parent_seed,
                 epochs=epochs,
+                uh_config=uh_config,
+                uh_profile_sha256=hashlib.sha256(args.uh_profile.read_bytes()).hexdigest(),
                 attack_rule=args.attack,
                 attack_rate=args.alpha,
                 target_item_id=args.target_item,
@@ -1205,7 +1488,9 @@ def main(argv: list[str] | None = None) -> int:
                 exploratory=args.exploratory,
             )
         print(json.dumps(report, indent=2, sort_keys=True))
-        return 0 if report.get("status") != "failed" else 2
+        if report.get("status") == "invalid" or report.get("gate", {}).get("passed") is False:
+            return 3
+        return 0
     except (DatasetError, OSError, ValueError, RuntimeError, json.JSONDecodeError) as error:
         print(f"experiment command failed: {error}", file=sys.stderr)
         return 2
