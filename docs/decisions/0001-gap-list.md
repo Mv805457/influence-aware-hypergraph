@@ -10,9 +10,16 @@
   modes.
 - Baseline: linear graph/hypergraph propagation with BPR training and a
   LightGCN operator for comparison.
-- Attack/evaluation primitives: seeded ATK-1/2/3 fake accounts, matched
-  placebo injection, hidden-ID relabeling in memory, full-ranking NDCG/Recall,
-  target exposure, and target rank.
+- Attack/evaluation primitives: seeded ATK-1 through ATK-5 fake accounts,
+  matched placebo injection, hidden-ID relabeling in memory, full-ranking
+  NDCG/Recall, target exposure, and target rank.
+- S5 flagging simulator: controlled recall/noise with visible hard/soft flags
+  isolated from evaluator truth, JSD anomaly scores, and attack strategies.
+- Gate functions: explicit G1/G2 evaluators; unlearning plan builders for
+  source removal/reweighting from visible flags plus supplied suspicion scores.
+- S6 influence primitives: differentiable weight-dependent propagation,
+  frozen-negative objective, L-BFGS polish, damped CG/Hessian-vector products,
+  exposure influence, overlap proximity, and blended suspicion ranking.
 - Local demo: MovieLens title/genre catalog generation and fixed GET-only
   playback server with strict catalog and result-bundle contracts.
 
@@ -22,10 +29,14 @@ demo bundle exporter.
 
 ## Blocking work before a valid research bundle
 
-- Confirm or replace all unresolved Part 3 `[P3]` method proposals.
-- Implement the guide-specified flag identification, influence estimator, IAHU
-  unlearning, recovery, validation, and leakage checks without inventing
-  formulas or silently changing methods.
+- Part 3 proposed defaults have been adopted by the user for new runs and are
+  recorded in decision 0002. Development-selected epoch count, seeds,
+  operating point, and V2/V4 validation thresholds still need preregistration.
+- Implement the staged IAHU executor, collateral guard, recovery, and
+  evaluator-only metrics; plan builders and influence primitives are not yet
+  wired into the executor.
+- Wire G1/G2 and leakage gates into a reproducible runner, add run manifests,
+  and export only completed worlds that pass all validity gates.
 - Implement seeded orchestration, run manifests, resume/validity accounting,
   comparison baselines, gate enforcement, and a sanitizer-backed exporter.
 - Add numerical, leakage, validation, integration, and repeatability checks

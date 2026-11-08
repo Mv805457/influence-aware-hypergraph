@@ -51,7 +51,10 @@ class RandomProfileAttackTests(unittest.TestCase):
             inject_fake_accounts(self.rows, seed=1, target_item_id=None)
 
     def test_bandwagon_and_popularity_rules_preserve_profile_contract(self) -> None:
-        for rule in ("atk2_bandwagon", "atk3_popularity"):
+        for rule in (
+            "atk2_bandwagon", "atk3_popularity", "atk4_coordinated",
+            "atk5_overlap_minimizing",
+        ):
             with self.subTest(rule=rule):
                 result = inject_fake_accounts(
                     self.rows, seed=31, target_item_id=10, alpha=0.2, rule=rule
@@ -62,7 +65,30 @@ class RandomProfileAttackTests(unittest.TestCase):
                         profiles[row.user_id].append(row.item_id)
                 self.assertTrue(all(10 in items for items in profiles.values()))
                 self.assertTrue(all(len(items) == result.profile_length for items in profiles.values()))
+                self.assertTrue(all(len(items) == len(set(items)) for items in profiles.values()))
                 self.assertEqual(result.rule, rule)
+
+    def test_all_filler_rules_produce_matched_placebo_profiles(self) -> None:
+        for rule in (
+            "atk1_random", "atk2_bandwagon", "atk3_popularity",
+            "atk4_coordinated", "atk5_overlap_minimizing",
+        ):
+            attack = inject_fake_accounts(
+                self.rows, seed=71, target_item_id=10, alpha=0.2, rule=rule
+            )
+            placebo = inject_fake_accounts(
+                self.rows, seed=71, target_item_id=10, alpha=0.2, rule=rule, placebo=True
+            )
+            self.assertEqual(attack.fake_account_count, placebo.fake_account_count)
+            for result, should_contain_target in ((attack, True), (placebo, False)):
+                profiles: dict[int, list[int]] = defaultdict(list)
+                for row in result.interactions:
+                    if row.user_id in result.hidden_source_ids:
+                        profiles[row.user_id].append(row.item_id)
+                self.assertEqual(len(profiles), result.fake_account_count)
+                self.assertTrue(all(len(items) == result.profile_length for items in profiles.values()))
+                self.assertTrue(all(len(items) == len(set(items)) for items in profiles.values()))
+                self.assertTrue(all((10 in items) == should_contain_target for items in profiles.values()))
 
 
 if __name__ == "__main__":

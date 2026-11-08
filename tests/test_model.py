@@ -4,6 +4,8 @@ import sys
 import unittest
 from pathlib import Path
 
+import numpy as np
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
@@ -37,6 +39,23 @@ class BPRModelTests(unittest.TestCase):
         ranked = model.rank_items(1)
         self.assertTrue(all(item_id not in {1, 2, 3} for item_id, _score in ranked))
         self.assertEqual([item_id for item_id, _score in ranked], [4, 5])
+
+    def test_warm_started_weighted_fit_reweights_operator_and_drops_removed_history(self) -> None:
+        rows = [
+            Interaction(1, 1, 5, None), Interaction(1, 2, 5, None), Interaction(1, 3, 5, None),
+            Interaction(2, 2, 5, None), Interaction(2, 3, 5, None), Interaction(2, 4, 5, None),
+            Interaction(3, 1, 5, None), Interaction(3, 4, 5, None), Interaction(3, 5, 5, None),
+        ]
+        graph = build_user_history(rows)
+        config = BPRConfig(dimension=4, layers=2, batch_size=9, epochs=1)
+        initial = fit_bpr(graph, rows, config=config, seed=11)
+        result = fit_bpr(
+            graph, rows, config=config, seed=12, source_weights=[0.0, 0.5, 1.0],
+            initial_theta=initial.theta,
+        )
+        self.assertEqual(result.history[1], frozenset())
+        self.assertEqual(result.history[2], frozenset({2, 3, 4}))
+        self.assertTrue(np.isfinite(result.theta).all())
 
 
 if __name__ == "__main__":
