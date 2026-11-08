@@ -4,12 +4,20 @@ import tempfile
 import unittest
 from pathlib import Path
 import sys
+import json
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from iahu.data import Interaction
-from iahu.runner import check_unlearning_import_boundary, spawn_seed_streams, _visible_split
+from iahu.model import BPRConfig
+from iahu.runner import (
+    _g1_report_passes_for_run,
+    _read_uh_profile,
+    check_unlearning_import_boundary,
+    spawn_seed_streams,
+    _visible_split,
+)
 
 
 class SeedAndVisibilityTests(unittest.TestCase):
@@ -41,6 +49,97 @@ class InformationBoundaryTests(unittest.TestCase):
             (root / "unlearn.py").write_text("from iahu.vault import hidden_ids\n", encoding="utf-8")
             (root / "influence.py").write_text("def safe(): return 1\n", encoding="utf-8")
             self.assertFalse(check_unlearning_import_boundary(root))
+
+
+class DevelopmentProfileTests(unittest.TestCase):
+    def _write_profile(self, directory: Path, **overrides: object) -> Path:
+        allowlist = json.loads((ROOT / "configs" / "datasets.json").read_text(encoding="utf-8"))
+        selected_config = {
+            "dimension": 32,
+            "layers": 1,
+            "learning_rate": 0.001,
+            "regularization": BPRConfig().regularization,
+            "batch_size": BPRConfig().batch_size,
+            "epochs": 3,
+        }
+        profile = {
+            "schema_version": 1,
+            "dataset": "ml-100k",
+            "dataset_sha256": allowlist["datasets"]["ml-100k"]["sha256"],
+            "tier": "development_only",
+            "fixed_epochs": 3,
+            "selected_config": selected_config,
+            "uh_config": selected_config.copy(),
+            "candidate_configs": [selected_config.copy()],
+        }
+        profile.update(overrides)
+        path = directory / "uh-profile.json"
+        path.write_text(json.dumps(profile), encoding="utf-8")
+        return path
+
+    def test_reads_pinned_development_profile(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT / "tests") as directory:
+            config = _read_uh_profile(self._write_profile(Path(directory)), epochs=3)
+        self.assertEqual(config, BPRConfig(dimension=32, layers=1, learning_rate=0.001, epochs=3))
+
+    def test_rejects_wrong_epoch_tier_or_out_of_grid_profile(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT / "tests") as directory:
+            path = self._write_profile(Path(directory))
+            with self.assertRaisesRegex(ValueError, "fixed epoch"):
+                _read_uh_profile(path, epochs=4)
+            self._write_profile(Path(directory), tier="main_candidate")
+            with self.assertRaisesRegex(ValueError, "development-only"):
+                _read_uh_profile(path, epochs=3)
+            self._write_profile(
+                Path(directory),
+                selected_config={
+                    "dimension": 32,
+                    "layers": 1,
+                    "learning_rate": 0.001,
+                    "regularization": BPRConfig().regularization,
+                    "batch_size": BPRConfig().batch_size,
+                    "epochs": 4,
+                },
+            )
+            with self.assertRaisesRegex(ValueError, "selected_config must use"):
+                _read_uh_profile(path, epochs=3)
+            self._write_profile(
+                Path(directory),
+                selected_config={
+                    "dimension": 128,
+                    "layers": 1,
+                    "learning_rate": 0.001,
+                    "regularization": BPRConfig().regularization,
+                    "batch_size": BPRConfig().batch_size,
+                    "epochs": 3,
+                },
+            )
+            with self.assertRaisesRegex(ValueError, "outside the documented"):
+                _read_uh_profile(path, epochs=3)
+
+    def test_g1_must_match_the_profile_used_by_main_world(self) -> None:
+        config = BPRConfig(dimension=32, layers=1, learning_rate=0.001, epochs=3)
+        report = {
+            "gate": {"passed": True},
+            "dataset": "ml-1m",
+            "dataset_sha256": "a6898adb50b9ca05aa231689da44c217cb524e7ebd39d264c56e2832f2c54e20",
+            "fixed_epochs": 3,
+            "uh_config": {
+                "dimension": 32,
+                "layers": 1,
+                "learning_rate": 0.001,
+                "regularization": BPRConfig().regularization,
+                "batch_size": BPRConfig().batch_size,
+                "epochs": 3,
+            },
+            "uh_profile_sha256": "b" * 64,
+        }
+        self.assertTrue(_g1_report_passes_for_run(
+            report, epochs=3, uh_config=config, uh_profile_sha256="b" * 64,
+        ))
+        self.assertFalse(_g1_report_passes_for_run(
+            report, epochs=3, uh_config=config, uh_profile_sha256="c" * 64,
+        ))
 
 
 if __name__ == "__main__":
