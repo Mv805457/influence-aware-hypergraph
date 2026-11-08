@@ -79,7 +79,14 @@ def _atomic_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    for attempt in range(6):
+        try:
+            temporary.replace(path)
+            return
+        except PermissionError:
+            if attempt == 5:
+                raise
+            time.sleep(0.05 * (attempt + 1))
 
 
 def _git_commit() -> str | None:
@@ -292,11 +299,81 @@ def select_fixed_epochs(
     }
 
 
+def _uh_development_grid(epochs: int) -> list[BPRConfig]:
+    """Fixed expanded profile grid for the unchanged UH/BPR model."""
+    return [
+        BPRConfig(
+            dimension=dimension,
+            layers=layers,
+            learning_rate=learning_rate,
+            regularization=regularization,
+            batch_size=BPRConfig().batch_size,
+            epochs=epochs,
+        )
+        for dimension in (32, 64, 128)
+        for layers in (1, 2, 3)
+        for learning_rate in (3e-4, 1e-3, 3e-3, 1e-2)
+        for regularization in (1e-5, 1e-4, 1e-3)
+    ]
+
+
+def _restore_uh_progress(
+    saved: Any,
+    *,
+    dataset: str,
+    dataset_sha256: str,
+    parent_seed: int,
+    epochs: int,
+    configs: Sequence[BPRConfig],
+    world_seeds: Sequence[int],
+) -> tuple[int, dict[str, list[float | None]]]:
+    """Validate and restore one exact development-search prefix."""
+    if not isinstance(saved, dict):
+        raise ValueError("UH tuning progress root must be a JSON object")
+    required_models = len(world_seeds) * len(configs)
+    if (
+        saved.get("status") != "running"
+        or saved.get("dataset") != dataset
+        or saved.get("dataset_sha256") != dataset_sha256
+        or saved.get("parent_seed") != parent_seed
+        or saved.get("fixed_epochs") != epochs
+        or saved.get("required_models") != required_models
+        or saved.get("grid_id", "uh-bpr-development-v2-108") != "uh-bpr-development-v2-108"
+        or saved.get("world_seeds", list(world_seeds)) != list(world_seeds)
+    ):
+        raise ValueError("existing UH progress does not match this dataset, seed, epoch, and grid; move it aside to restart")
+    completed = saved.get("completed_models")
+    saved_scores = saved.get("validation_ndcg_at_20_by_config")
+    if (
+        isinstance(completed, bool)
+        or not isinstance(completed, int)
+        or not 0 <= completed <= required_models
+        or not isinstance(saved_scores, dict)
+    ):
+        raise ValueError("existing UH progress has an invalid completion count or score table")
+    full_worlds, partial_world = divmod(completed, len(configs))
+    restored: dict[str, list[float | None]] = {}
+    for index in range(len(configs)):
+        values = saved_scores.get(str(index))
+        expected_count = full_worlds + (1 if index < partial_world else 0)
+        if not isinstance(values, list) or len(values) != expected_count:
+            raise ValueError("existing UH progress score table is incomplete or inconsistent")
+        for score in values:
+            if score is not None and (
+                isinstance(score, bool)
+                or not isinstance(score, (int, float))
+                or not math.isfinite(float(score))
+            ):
+                raise ValueError("existing UH progress contains an invalid validation score")
+        restored[str(index)] = [None if score is None else float(score) for score in values]
+    return completed, restored
+
+
 def select_uh_hyperparameters(
     archive_path: Path,
     *,
     epochs: int,
-    parent_seed: int = 20261111,
+    parent_seed: int = 20261112,
     development_worlds: int = 5,
     progress_path: Path | None = None,
 ) -> dict[str, Any]:
@@ -308,20 +385,31 @@ def select_uh_hyperparameters(
     children = np.random.SeedSequence(parent_seed).spawn(development_worlds)
     world_parents = [int(child.generate_state(1, dtype=np.uint32)[0]) for child in children]
     streams = [spawn_seed_streams(seed) for seed in world_parents]
-    configs = [
-        BPRConfig(dimension=dimension, layers=layers, learning_rate=learning_rate, epochs=epochs)
-        for dimension in (32, 64)
-        for layers in (1, 2, 3)
-        for learning_rate in (1e-3, 3e-3)
-    ]
-    scores: dict[str, list[float]] = {str(index): [] for index in range(len(configs))}
+    configs = _uh_development_grid(epochs)
+    scores: dict[str, list[float | None]] = {str(index): [] for index in range(len(configs))}
     started = time.perf_counter()
+    required_models = len(streams) * len(configs)
     completed_configs = 0
+    if progress_path is not None and progress_path.is_file():
+        saved = json.loads(progress_path.read_text(encoding="utf-8"))
+        completed_configs, scores = _restore_uh_progress(
+            saved,
+            dataset=data.dataset,
+            dataset_sha256=data.archive_sha256,
+            parent_seed=parent_seed,
+            epochs=epochs,
+            configs=configs,
+            world_seeds=[seed.world for seed in streams],
+        )
+        print(f"Resuming UH development selection after {completed_configs}/{required_models} fits", flush=True)
     for world_index, seed_set in enumerate(streams, start=1):
         split = split_per_user(positive, world_seed=seed_set.world)
         train, _hidden_v, _ = _visible_split(split.train, seed=seed_set.world)
         graph = build_user_history(train)
         for index, config in enumerate(configs):
+            global_index = (world_index - 1) * len(configs) + index
+            if global_index < completed_configs:
+                continue
             model = fit_bpr(graph, train, config=config, seed=seed_set.training)
             evaluation = evaluate_full_ranking(
                 model,
@@ -331,25 +419,27 @@ def select_uh_hyperparameters(
                 example_seed=seed_set.world,
             )
             score = evaluation.metrics.get("ndcg@20")
-            if score is not None:
-                scores[str(index)].append(float(score))
+            scores[str(index)].append(None if score is None else float(score))
             completed_configs += 1
             if progress_path is not None:
                 _atomic_json(progress_path, {
                     "schema_version": 1,
                     "status": "running",
                     "completed_models": completed_configs,
-                    "required_models": len(streams) * len(configs),
+                    "required_models": required_models,
                     "current_development_world": world_index,
                     "current_config": index + 1,
+                    "grid_id": "uh-bpr-development-v2-108",
                     "dataset": data.dataset,
                     "dataset_sha256": data.archive_sha256,
                     "parent_seed": parent_seed,
+                    "world_seeds": [seed.world for seed in streams],
                     "fixed_epochs": epochs,
                     "validation_ndcg_at_20_by_config": scores,
                 })
     means = {
-        str(index): float(np.mean(scores[str(index)])) if scores[str(index)] else None
+        str(index): float(np.mean([score for score in scores[str(index)] if score is not None]))
+        if any(score is not None for score in scores[str(index)]) else None
         for index in range(len(configs))
     }
     eligible = [(value, -index) for index, value in enumerate(means.values()) if value is not None]
@@ -361,6 +451,7 @@ def select_uh_hyperparameters(
     return {
         "schema_version": 1,
         "profile": "UH/BPR hyperparameters selected on MovieLens-100K validation NDCG@20",
+        "grid_id": "uh-bpr-development-v2-108",
         "dataset": data.dataset,
         "dataset_sha256": data.archive_sha256,
         "parent_seed": parent_seed,
@@ -383,7 +474,12 @@ def select_uh_hyperparameters(
         "selected_validation_ndcg_at_20": float(selected_score),
         "elapsed_seconds": time.perf_counter() - started,
         "tier": "development_only",
-        "assumptions": ["12-config grid shared with the clean LightGCN gate; regularization and batch size fixed to BPRConfig defaults"],
+        "assumptions": [
+            "108-config development-only grid: dimension {32,64,128}, layers {1,2,3}, "
+            "learning rate {0.0003,0.001,0.003,0.01}, regularization {0.00001,0.0001,0.001}; "
+            "batch size fixed to BPRConfig default",
+            "model architecture, BPR objective, dataset, attack, and unlearning method are unchanged",
+        ],
     }
 
 
@@ -420,16 +516,14 @@ def _read_uh_profile(path: Path, *, epochs: int) -> BPRConfig:
         epochs=epochs,
     )
     config.validate()
-    allowed = {
-        (dimension, layers, learning_rate)
-        for dimension in (32, 64)
-        for layers in (1, 2, 3)
-        for learning_rate in (1e-3, 3e-3)
-    }
-    if (config.dimension, config.layers, config.learning_rate) not in allowed:
-        raise ValueError("UH profile selected a setting outside the documented 12-config grid")
-    if config.regularization != BPRConfig().regularization or config.batch_size != BPRConfig().batch_size:
-        raise ValueError("UH profile regularization and batch size must use the documented fixed defaults")
+    expected_grid = [asdict(candidate) for candidate in _uh_development_grid(epochs)]
+    if (
+        value.get("grid_id") != "uh-bpr-development-v2-108"
+        or value.get("candidate_configs") != expected_grid
+    ):
+        raise ValueError("UH profile must record the exact approved 108-setting development grid")
+    if asdict(config) not in expected_grid:
+        raise ValueError("UH profile selected a setting outside the approved development grid")
     if value.get("uh_config") != asdict(config):
         raise ValueError("UH profile's selected_config and uh_config disagree")
     candidates = value.get("candidate_configs")
@@ -1378,7 +1472,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     tune_uh.add_argument("--archive", type=Path, required=True)
     tune_uh.add_argument("--epochs", type=int, required=True)
-    tune_uh.add_argument("--parent-seed", type=int, default=20261111)
+    tune_uh.add_argument("--parent-seed", type=int, default=20261112)
     tune_uh.add_argument("--development-worlds", type=int, default=5)
     tune_uh.add_argument("--output", type=Path, default=PREREG / "uh-profile-ml-100k.json")
 
