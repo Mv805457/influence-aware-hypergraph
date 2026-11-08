@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "datasets": {
+    "ml-100k": {
+      "role": "development",
+      "url": "https://files.grouplens.org/datasets/movielens/ml-100k.zip",
+      "sha256": "50d2a982c66986937beb9ffb3aa76efe955bf3d5c6b761f4e3a7cd717c6a3229",
+      "verified_md5": "0e33842e24a9c977be4e0107933c0723",
+      "ratings_member": "ml-100k/u.data",
+      "movies_member": "ml-100k/u.item",
+      "encoding": "iso-8859-1",
+      "format": "ml-100k"
+    },
+    "ml-1m": {
+      "role": "main",
+      "url": "https://files.grouplens.org/datasets/movielens/ml-1m.zip",
+      "sha256": "a6898adb50b9ca05aa231689da44c217cb524e7ebd39d264c56e2832f2c54e20",
+      "verified_md5": "c4d9eecfca2ab87c1945afe126590906",
+      "ratings_member": "ml-1m/ratings.dat",
+      "movies_member": "ml-1m/movies.dat",
+      "encoding": "iso-8859-1",
+      "format": "ml-1m"
+    }
+  }
+}

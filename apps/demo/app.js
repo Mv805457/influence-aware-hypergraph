@@ -31,16 +31,19 @@ const TRACE_LABELS = {
   },
 };
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 18;
 const state = {
   view: "shop",
   bundle: { schema_version: 2, scenarios: [] },
   bundleError: "",
-  catalog: [],
+  movies: [],
   catalogError: "",
-  cart: new Map(),
+  movieDataset: null,
+  watchlist: new Map(),
+  watched: new Set(),
   category: "",
   query: "",
+  movieSort: "popular",
   page: 0,
   traceIndexes: { pipeline: -1, poisoning: -1 },
   traceTimers: { pipeline: null, poisoning: null },
@@ -69,11 +72,6 @@ function addOption(select, value, label) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 }).format(value);
-}
-
-function formatMoney(value) {
-  if (!Number.isFinite(value)) return "Price unavailable";
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(value);
 }
 
 function rankLabel(rank, topK) {
@@ -317,122 +315,117 @@ function handleTraceAction(event) {
   }
 }
 
-function filteredProducts() {
+function filteredMovies() {
   const query = state.query.trim().toLocaleLowerCase();
-  return state.catalog.filter((product) => {
-    const matchesCategory = !state.category || product.category.split(" / ")[0] === state.category;
-    const matchesQuery = !query || `${product.name} ${product.category}`.toLocaleLowerCase().includes(query);
+  const movies = state.movies.filter((movie) => {
+    const matchesCategory = !state.category || movie.genres.includes(state.category);
+    const matchesQuery = !query || `${movie.title} ${movie.genres.join(" ")} ${movie.year || ""}`.toLocaleLowerCase().includes(query);
     return matchesCategory && matchesQuery;
   });
+  if (state.movieSort === "newest") {
+    movies.sort((left, right) => (right.year || 0) - (left.year || 0) || right.popularity - left.popularity || left.id - right.id);
+  } else if (state.movieSort === "title") {
+    movies.sort((left, right) => left.title.localeCompare(right.title) || left.id - right.id);
+  } else {
+    movies.sort((left, right) => right.popularity - left.popularity || left.id - right.id);
+  }
+  return movies;
 }
 
-function renderProducts() {
+function renderMovies() {
   const grid = document.querySelector("#product-grid");
   const message = document.querySelector("#catalog-message");
-  const products = filteredProducts();
-  const pageCount = Math.max(1, Math.ceil(products.length / PAGE_SIZE));
+  const movies = filteredMovies();
+  const pageCount = Math.max(1, Math.ceil(movies.length / PAGE_SIZE));
   state.page = Math.min(state.page, pageCount - 1);
   const start = state.page * PAGE_SIZE;
-  const visible = products.slice(start, start + PAGE_SIZE);
+  const visible = movies.slice(start, start + PAGE_SIZE);
   grid.replaceChildren();
-  setText("#catalog-count", `${products.length.toLocaleString()} items`);
-  setText("#catalog-page-label", products.length ? `Showing ${start + 1}–${Math.min(start + PAGE_SIZE, products.length)} of ${products.length.toLocaleString()}` : "No products to show");
+  setText("#catalog-count", `${movies.length.toLocaleString()} titles`);
+  setText("#catalog-page-label", movies.length ? `Showing ${start + 1}–${Math.min(start + PAGE_SIZE, movies.length)} of ${movies.length.toLocaleString()}` : "No titles to show");
   document.querySelector("#products-prev").disabled = state.page <= 0;
-  document.querySelector("#products-next").disabled = start + PAGE_SIZE >= products.length;
-  if (!state.catalog.length) {
+  document.querySelector("#products-next").disabled = start + PAGE_SIZE >= movies.length;
+  if (!state.movies.length) {
     message.hidden = false;
     message.classList.toggle("error", Boolean(state.catalogError));
-    message.textContent = state.catalogError || "No local catalog found. Import the supplied sample archive to populate the storefront.";
+    message.textContent = state.catalogError || "No MovieLens catalog is available yet. Generate results/movie-catalog.json from an approved MovieLens archive.";
     return;
   }
-  message.hidden = products.length > 0;
+  message.hidden = movies.length > 0;
   message.classList.remove("error");
-  message.textContent = "No products match those filters.";
+  message.textContent = "No films match those filters.";
 
-  visible.forEach((product) => {
-    const card = element("article", "product-card");
-    const visual = element("div", "product-visual");
-    visual.append(element("span", "product-monogram", product.category.split(" / ").at(-1).slice(0, 2).toUpperCase()));
-    visual.append(element("span", "product-category", product.category.split(" / ").at(-1)));
-    const info = element("div", "product-info");
-    info.append(element("p", "product-category-text", product.category.split(" / ").slice(0, 2).join(" / ")));
-    info.append(element("h4", "", product.name));
-    const ratingText = product.rating === null ? "Rating not recorded" : `★ ${formatNumber(product.rating)} · ${product.rating_count === null ? "count not recorded" : `${product.rating_count.toLocaleString()} ratings`}`;
-    info.append(element("span", "product-rating", ratingText));
-    const priceLine = element("div", "product-price-line");
-    priceLine.append(element("strong", "product-price", formatMoney(product.price)));
-    if (product.list_price !== null && product.list_price > (product.price || 0)) priceLine.append(element("s", "list-price", formatMoney(product.list_price)));
-    info.append(priceLine);
-    const add = element("button", "add-button", product.price === null ? "Price unavailable" : "Add to cart +");
-    add.type = "button";
-    add.dataset.addProduct = product.id;
-    add.disabled = product.price === null;
-    info.append(add);
+  visible.forEach((movie, index) => {
+    const card = element("article", "movie-card");
+    const visual = element("div", `poster-art poster-tone-${(start + index) % 6}`);
+    visual.append(element("span", "poster-mark", movie.genres[0] || "CINEMA"));
+    visual.append(element("strong", "poster-title", movie.title.replace(/\s*\(\d{4}\)\s*$/, "")));
+    visual.append(element("span", "poster-year", movie.year || "MOVIELENS"));
+    const info = element("div", "movie-info");
+    info.append(element("h4", "", movie.title));
+    info.append(element("p", "movie-meta", `${movie.year || "Year not listed"} · ${movie.genres.join(" / ") || "Genre not listed"}`));
+    info.append(element("span", "movie-popularity", `Clean training popularity · ${movie.popularity.toLocaleString()}`));
+    const actions = element("div", "movie-actions");
+    const watch = element("button", "add-button", state.watchlist.has(movie.id) ? "In watchlist ✓" : "Add to watchlist +");
+    watch.type = "button";
+    watch.dataset.movieAction = "watchlist";
+    watch.dataset.movieId = String(movie.id);
+    const seen = element("button", "seen-button", state.watched.has(movie.id) ? "Watched ✓" : "Mark watched");
+    seen.type = "button";
+    seen.dataset.movieAction = "watched";
+    seen.dataset.movieId = String(movie.id);
+    actions.append(watch, seen);
+    info.append(actions);
     card.append(visual, info);
     grid.append(card);
   });
 }
 
-function renderCart() {
+function renderWatchlist() {
   const cartList = document.querySelector("#cart-list");
   cartList.replaceChildren();
-  let totalQuantity = 0;
-  let subtotal = 0;
-  state.cart.forEach(({ product, quantity }) => {
-    totalQuantity += quantity;
-    if (product.price !== null) subtotal += product.price * quantity;
+  state.watchlist.forEach((movie) => {
     const row = element("div", "cart-row");
-    const monogram = element("span", "cart-monogram", product.name.slice(0, 1).toUpperCase());
+    const monogram = element("span", "cart-monogram", movie.title.slice(0, 1).toUpperCase());
     const body = element("div", "cart-row-main");
-    body.append(element("strong", "cart-product-name", product.name), element("span", "cart-product-price", formatMoney(product.price)));
-    const controls = element("div", "quantity-controls");
-    const decrement = element("button", "quantity-button", "−");
-    decrement.type = "button";
-    decrement.setAttribute("aria-label", `Decrease quantity of ${product.name}`);
-    decrement.dataset.cartAction = "decrement";
-    decrement.dataset.productId = product.id;
-    controls.append(decrement, element("span", "quantity", String(quantity)));
-    const increment = element("button", "quantity-button", "+");
-    increment.type = "button";
-    increment.setAttribute("aria-label", `Increase quantity of ${product.name}`);
-    increment.dataset.cartAction = "increment";
-    increment.dataset.productId = product.id;
-    controls.append(increment);
+    body.append(element("strong", "cart-product-name", movie.title), element("span", "cart-product-price", movie.year || "Film"));
     const remove = element("button", "remove-button", "Remove");
     remove.type = "button";
-    remove.dataset.cartAction = "remove";
-    remove.dataset.productId = product.id;
-    body.append(controls, remove);
+    remove.dataset.movieAction = "remove-watchlist";
+    remove.dataset.movieId = String(movie.id);
+    body.append(remove);
     row.append(monogram, body);
     cartList.append(row);
   });
-  if (!state.cart.size) cartList.append(element("p", "cart-empty", "Your cart is empty. Add an item to see it here."));
-  setText("#cart-count", String(totalQuantity));
-  setText("#cart-items-label", `(${totalQuantity})`);
-  setText("#cart-subtotal", formatMoney(subtotal));
-  document.querySelector("#checkout-button").disabled = totalQuantity === 0;
+  if (!state.watchlist.size) cartList.append(element("p", "cart-empty", "Your watchlist is empty. Add a film to save it here."));
+  setText("#cart-count", String(state.watchlist.size));
+  setText("#cart-items-label", `(${state.watchlist.size})`);
 }
 
 function updateCategories() {
   const select = document.querySelector("#category-filter");
   select.replaceChildren();
-  addOption(select, "", "All categories");
-  const categories = [...new Set(state.catalog.map((product) => product.category.split(" / ")[0]))].sort((a, b) => a.localeCompare(b));
-  categories.forEach((category) => addOption(select, category, category));
+  addOption(select, "", "All genres");
+  const genres = [...new Set(state.movies.flatMap((movie) => movie.genres))].sort((a, b) => a.localeCompare(b));
+  genres.forEach((genre) => addOption(select, genre, genre));
 }
 
-async function loadCatalog() {
+async function loadMovies() {
   try {
-    const response = await fetch("/api/catalog", { cache: "no-store" });
+    const response = await fetch("/api/movies", { cache: "no-store" });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "The local catalog could not be loaded.");
-    if (data.schema_version !== 1 || !Array.isArray(data.products)) throw new Error("The local catalog uses an unsupported data contract.");
-    state.catalog = data.products;
+    if (!response.ok) throw new Error(data.error || "The MovieLens catalog could not be loaded.");
+    if (data.schema_version !== 1 || !Array.isArray(data.movies)) throw new Error("The MovieLens catalog uses an unsupported data contract.");
+    state.movies = data.movies;
+    state.movieDataset = data.dataset ? `${data.dataset} · ${data.dataset_role}` : null;
     updateCategories();
+    if (state.movieDataset) {
+      setText("#movie-source-note", `${state.movieDataset} · Popularity is counted from clean training interactions before attack. MovieLens supplies titles and genres, not poster images.`);
+    }
   } catch (error) {
     state.catalogError = error instanceof TypeError ? "Could not contact the local demo server. Start it and reload this page." : error.message;
   }
-  renderProducts();
+  renderMovies();
 }
 
 async function loadBundle() {
@@ -497,46 +490,50 @@ methodSelect.addEventListener("change", () => {
 document.querySelector("#product-search").addEventListener("input", (event) => {
   state.query = event.target.value;
   state.page = 0;
-  renderProducts();
+  renderMovies();
 });
 document.querySelector("#category-filter").addEventListener("change", (event) => {
   state.category = event.target.value;
   state.page = 0;
-  renderProducts();
+  renderMovies();
 });
 document.querySelector("#products-prev").addEventListener("click", () => {
   state.page = Math.max(0, state.page - 1);
-  renderProducts();
+  renderMovies();
 });
 document.querySelector("#products-next").addEventListener("click", () => {
   state.page += 1;
-  renderProducts();
+  renderMovies();
 });
 document.querySelector("#product-grid").addEventListener("click", (event) => {
-  const button = event.target.closest("button[data-add-product]");
+  const button = event.target.closest("button[data-movie-action]");
   if (!button) return;
-  const product = state.catalog.find((item) => item.id === button.dataset.addProduct);
-  if (!product || product.price === null) return;
-  const current = state.cart.get(product.id);
-  state.cart.set(product.id, { product, quantity: Math.min((current?.quantity || 0) + 1, 99) });
-  document.querySelector("#checkout-note").textContent = "";
-  renderCart();
+  const movie = state.movies.find((item) => item.id === Number(button.dataset.movieId));
+  if (!movie) return;
+  if (button.dataset.movieAction === "watchlist") {
+    if (state.watchlist.has(movie.id)) state.watchlist.delete(movie.id);
+    else state.watchlist.set(movie.id, movie);
+    renderWatchlist();
+  } else if (button.dataset.movieAction === "watched") {
+    if (state.watched.has(movie.id)) state.watched.delete(movie.id);
+    else state.watched.add(movie.id);
+  }
+  renderMovies();
 });
 document.querySelector("#cart-list").addEventListener("click", (event) => {
-  const button = event.target.closest("button[data-cart-action]");
+  const button = event.target.closest("button[data-movie-action='remove-watchlist']");
   if (!button) return;
-  const id = button.dataset.productId;
-  const current = state.cart.get(id);
-  if (!current) return;
-  if (button.dataset.cartAction === "remove" || (button.dataset.cartAction === "decrement" && current.quantity <= 1)) state.cart.delete(id);
-  else if (button.dataset.cartAction === "decrement") state.cart.set(id, { ...current, quantity: current.quantity - 1 });
-  else if (button.dataset.cartAction === "increment") state.cart.set(id, { ...current, quantity: Math.min(current.quantity + 1, 99) });
-  renderCart();
+  state.watchlist.delete(Number(button.dataset.movieId));
+  renderWatchlist();
+  renderMovies();
 });
-document.querySelector("#checkout-button").addEventListener("click", () => {
-  document.querySelector("#checkout-note").textContent = "Demo only — no order or payment was created.";
-});
+document.querySelectorAll("[data-movie-sort]").forEach((button) => button.addEventListener("click", () => {
+  state.movieSort = button.dataset.movieSort;
+  state.page = 0;
+  document.querySelectorAll("[data-movie-sort]").forEach((option) => option.classList.toggle("active", option === button));
+  renderMovies();
+}));
 
-renderCart();
-loadCatalog();
+renderWatchlist();
+loadMovies();
 loadBundle();

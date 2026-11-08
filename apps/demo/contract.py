@@ -10,6 +10,9 @@ from typing import Any
 BUNDLE_SCHEMA_VERSION = 2
 SOURCE_SCHEMA_VERSION = "completed-run-export-v1"
 EXAMPLE_USER_LABEL = "Example user 01"
+MOVIE_CATALOG_FIELDS = {
+    "schema_version", "dataset", "dataset_role", "dataset_sha256", "popularity_source", "world_seed", "movies"
+}
 
 METRIC_LABELS = {
     "rar": "Residual Attack Ratio (aggregate evaluator metric)",
@@ -56,6 +59,56 @@ TRACE_COUNT_KEYS = {
 
 class ContractError(ValueError):
     """Raised when exported demo data does not satisfy the public contract."""
+
+
+class MovieCatalogError(ValueError):
+    """Raised when the local MovieLens catalog is malformed or unsafe."""
+
+
+def validate_movie_catalog(value: Any) -> dict[str, Any]:
+    """Validate the public MovieLens-only browse catalog used by the film UI."""
+    if not isinstance(value, Mapping) or set(value) != MOVIE_CATALOG_FIELDS:
+        raise MovieCatalogError("catalog has unsupported or missing root fields")
+    if value["schema_version"] != 1:
+        raise MovieCatalogError("schema_version must be 1")
+    if value["dataset"] not in {"ml-100k", "ml-1m"}:
+        raise MovieCatalogError("dataset must be an approved MovieLens dataset")
+    expected_role = "development" if value["dataset"] == "ml-100k" else "main"
+    if value["dataset_role"] != expected_role:
+        raise MovieCatalogError("dataset_role does not match the approved dataset")
+    digest = value["dataset_sha256"]
+    if not isinstance(digest, str) or len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+        raise MovieCatalogError("dataset_sha256 must be a lowercase SHA-256 digest")
+    if value["popularity_source"] != "positive MovieLens training interactions before attack":
+        raise MovieCatalogError("popularity_source is unsupported")
+    seed = value["world_seed"]
+    if isinstance(seed, bool) or not isinstance(seed, int):
+        raise MovieCatalogError("world_seed must be an integer")
+    movies = value["movies"]
+    if not isinstance(movies, list) or len(movies) > 10000:
+        raise MovieCatalogError("movies must be a list with at most 10000 entries")
+    seen_ids: set[int] = set()
+    for index, movie in enumerate(movies):
+        prefix = f"movies[{index}]"
+        if not isinstance(movie, Mapping) or set(movie) != {"id", "title", "year", "genres", "popularity"}:
+            raise MovieCatalogError(f"{prefix} has unsupported or missing fields")
+        movie_id = movie["id"]
+        if isinstance(movie_id, bool) or not isinstance(movie_id, int) or movie_id < 1 or movie_id in seen_ids:
+            raise MovieCatalogError(f"{prefix}.id must be a unique positive integer")
+        seen_ids.add(movie_id)
+        _text(movie["title"], f"{prefix}.title")
+        year = movie["year"]
+        if year is not None and (isinstance(year, bool) or not isinstance(year, int) or not 1870 <= year <= 2100):
+            raise MovieCatalogError(f"{prefix}.year must be null or a valid year")
+        genres = movie["genres"]
+        if not isinstance(genres, list) or len(genres) > 30:
+            raise MovieCatalogError(f"{prefix}.genres must be a list with at most 30 entries")
+        for genre in genres:
+            _text(genre, f"{prefix}.genres entry")
+        popularity = movie["popularity"]
+        if isinstance(popularity, bool) or not isinstance(popularity, int) or popularity < 0:
+            raise MovieCatalogError(f"{prefix}.popularity must be a non-negative integer")
+    return dict(value)
 
 
 def _object(value: Any, name: str, keys: set[str]) -> Mapping[str, Any]:

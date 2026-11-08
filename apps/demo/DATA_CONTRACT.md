@@ -1,140 +1,102 @@
-# Demo data contracts and information boundary
+# MovieLens demo data contract and boundary
 
-The demo is a viewer, not part of the experiment runtime. The server reads two
-fixed ignored files: `results/shop-catalog.json` for the local storefront and
-`results/demo-bundle.json` for saved experiment results. It has no route for
-arbitrary files. It does not import the research package, inspect run
-manifests, open model checkpoints, or access the vault. Only GET is supported.
+The browser and local HTTP server are presentation only. The server serves a
+small fixed set of static assets and reads only these fixed paths under the
+ignored `results/` directory:
 
-## Store catalog
+- `movie-catalog.json`: sanitized titles, genres, years, and clean-train
+  popularity for the film browsing page.
+- `demo-bundle.json`: a sanitized bundle exported from a completed, valid
+  offline experiment.
 
-`shop-catalog.json` has this shape:
+The server exposes fixed GET routes only. It does not resolve user-supplied
+paths, import `src/iahu`, open datasets, train a model, read a checkpoint, or
+access a vault. The browser cannot submit events to an experiment. Its
+watchlist and watched marks exist only in tab memory.
+
+## Movie catalog
+
+Schema version 1 has exactly these root fields:
 
 ```json
 {
   "schema_version": 1,
-  "products": [
-    {
-      "id": "product-00001",
-      "name": "Display name",
-      "category": "Category / Subcategory",
-      "price": 100.0,
-      "list_price": 150.0,
-      "rating": 4.5,
-      "rating_count": 1200,
-      "discount_percent": 33.0
-    }
+  "dataset": "ml-1m",
+  "dataset_role": "main",
+  "dataset_sha256": "<allowlisted archive digest>",
+  "popularity_source": "positive MovieLens training interactions before attack",
+  "world_seed": 2026,
+  "movies": [
+    {"id": 1, "title": "Toy Story (1995)", "year": 1995,
+     "genres": ["Animation", "Children's", "Comedy"], "popularity": 423}
   ]
 }
 ```
 
-The importer reads only product ID (transient deduplication key), product name,
-category, discounted price, actual price, discount percentage, rating, and
-rating count from `amazon.csv`. It creates sequential opaque local IDs and
-serializes only the fields shown above. The CSV's descriptions, review data,
-reviewer identities, image URLs, and product URLs are excluded. The cart exists
-only in JavaScript memory and is cleared on reload. The fake checkout button
-only displays a notice.
+Movie objects contain only the MovieLens item ID, public catalog metadata, and
+clean-train positive-interaction popularity. Ratings, user IDs, demographics,
+timestamps, and user histories are excluded. The item ID is used locally to
+join a recommendation to its title; it is not an account identifier. MovieLens
+has no poster images, so the page uses original text-led cards rather than
+fabricated artwork.
 
-The current archive is a mixed retail sample. Its product catalog supports a
-storefront visual; it is not a research dataset or an experiment output.
-Its price strings use the Indian rupee symbol, so the storefront assumes INR
-when displaying parsed numeric prices.
+The catalog is generated offline after SHA-256 verification against
+`configs/datasets.json`. MovieLens archives remain local and are not committed
+or redistributed.
 
-## Experiment result bundle
+## Experiment bundle
 
-The bundle uses schema version 2:
-
-```json
-{
-  "schema_version": 2,
-  "scenarios": []
-}
-```
-
-Each scenario contains:
-
-- `label` and the fixed tier `deployable` (oracle-tier outputs are rejected).
-- `setting`: dataset, hypergraph construction, attack, five independent seeds
-  (`world`, `attack`, `flagging`, `training`, `unlearning`), identification
-  rate, false-positive share, and strategy.
-- `target_item_label` and one curated example: the exporter-assigned display
-  pseudonym `Example user 01`, Top-K size, saved `before` list, and
-  `target_rank_before`.
-- Optional playback arrays `pipeline_trace` and `poisoning_trace`. They are
-  present in bundle schema version 2; absent source traces become empty arrays.
-- One or more `methods`, each with a public display label, saved `after` list,
-  `target_rank_after`, available aggregate metrics, and `elapsed_seconds`.
-
-Top-K list entries contain only `label` and `is_target`. Ranks are one-based. A
-`null` target rank means the target was absent from the saved Top-K list and the
-full rank was not exported. A rank greater than K means the item is outside that
-list.
-
-### Playback event schema
-
-Each trace event contains exactly:
+Schema version 2 is deliberately empty until a valid completed-run exporter
+exists and a run passes the required gates:
 
 ```json
-{
-  "step": "hypergraph_construction",
-  "counts": {"users": 25, "hyperedges": 7},
-  "elapsed_seconds": 1.25
-}
+{"schema_version": 2, "scenarios": []}
 ```
 
-Pipeline step codes are `dataset_preprocessing`, `interaction_matrix`,
-`hypergraph_construction`, and `recommendation_baseline`. Poisoning step codes
-are `attack_configuration`, `poisoning_simulation`, `identification`,
-`unlearning`, and `evaluation`. Allowed aggregate counters are `users`, `items`,
-`interactions`, `hyperedges`, `memberships`, `injected_interactions`,
-`candidate_sources`, `flagged_sources`, `removed_hyperedges`, and
-`evaluation_users`. Counts are non-negative integers. `elapsed_seconds` is a
-non-negative number or `null`. The interface labels these as saved events; its
-playback controls only change which saved event is highlighted.
+Every scenario contains a reviewed display label, `tier: "deployable"`, the
+dataset, hypergraph construction, attack, five seeds, and identification
+setting; a target display name; one pseudonymous benign evaluation example
+with before Top-K and target rank; fixed-step aggregate traces; and one or more
+methods with their saved after Top-K, target rank, allowed aggregate metrics,
+and elapsed seconds. Top-K entries contain only an item display label and a
+boolean target marker. Ranks are one-based full-candidate ranks; `null` means
+the rank was unavailable, while a rank above K means the target is outside the
+displayed list.
 
-The event labels are fixed in the interface. Unknown steps, fields, and counters
-are rejected or discarded by the exporter. This demo contract does not authorize
-any new experiment method. It only gives the offline run exporter a restricted
-way to supply saved aggregate checkpoints.
+Metric names are whitelisted in `contract.py`, including residual attack
+ratio, hidden-source recall, precision, benign weight loss, utility retention,
+control-item drift, NDCG@20, Recall@20, Top-K Jaccard, cost ratio, and
+membership AUC gap. The UI labels metrics and elapsed time and does no
+evaluation itself.
 
-### Metrics and identifying information
+Pipeline and poisoning traces are playback events only. Each event has a
+fixed step name, whitelisted aggregate counts, and elapsed seconds. No IDs,
+per-user evaluator labels, per-item scores, hidden attacker identities, vault
+contents, raw manifests/paths, or checkpoints may appear in the bundle. The
+offline exporter assigns `Example user 01`; this is a curated evaluation
+example, not a deployable user input.
 
-Metric keys are explicitly whitelisted in `contract.py`: residual attack ratio,
-hidden-source recall, extension precision, benign weight loss, utility
-retention, control-item drift, NDCG@20, Recall@20, Top-K Jaccard, cost ratio,
-and membership AUC gap. Only aggregate values included in a completed result
-are shown. Elapsed time is shown in seconds. No value is computed by the app.
+The current repository does **not** yet have a completed-run producer for
+this schema. The exploratory MovieLens diagnostic did not pass its target
+exposure gate and is intentionally not exported. Keep the result view empty
+until a valid run is produced; do not copy test fixtures or diagnostic values
+into `results/demo-bundle.json`.
 
-The exporter drops run/method IDs, source example user labels, item IDs, per-user
-evaluator labels, hidden attacker identities, vault contents, raw manifests,
-paths, per-item scores, and checkpoints. The demo example is curated offline
-from an approved benign evaluation cohort. The page describes the pseudonymous
-row as an evaluation example, not a deployable runtime input. The field
-whitelist cannot detect sensitive text mistakenly placed inside an approved
-display label; the offline producer must use reviewed scenario labels and item
-display names.
+## Completed-run source and export
 
-## Completed-run export input
+The sanitizer expects a JSON source with
+`schema_version: "completed-run-export-v1"` beneath
+`results/completed-run-exports/`. It copies only the approved fields and
+writes `results/demo-bundle.json`. The current exporter is a sanitizer, not a
+run producer, and its test fixtures are not experiment evidence. The valid
+source format must only be populated from saved offline outputs after all
+validity gates and manifest checks pass.
 
-The source JSON path must be inside `results/completed-run-exports/`, and its
-root must contain `schema_version: "completed-run-export-v1"` and a `scenarios`
-array with the fields above. `pipeline_trace` and `poisoning_trace` are optional
-source fields. Source event objects may contain extra fields, but the exporter
-copies only fixed steps, approved aggregate counters, and elapsed time before
-validating the result bundle. The output path is fixed at
-`results/demo-bundle.json`.
+## Missing or malformed files
 
-The repository currently has no offline run producer or valid completed run.
-The sample archive is not suitable for the project's stated 10-core dataset
-experiment. Until a valid completed run is produced, results and trace views
-must remain empty; no example recommendations, trace counts, or metrics should
-be added to the bundle.
-
-## Missing and invalid files
-
-If the catalog or result bundle is absent, the server serves an empty structure
-and the page displays an explicit empty state. Missing trace arrays display
-“no trace in this run.” Invalid JSON, unsupported schema versions, invalid
-ranks, or unapproved bundle fields return a readable contract error. The
-frontend only fetches the fixed `/api/catalog` and `/api/bundle` routes.
+Missing catalogs and bundles return empty structures; the page reports an
+empty state. Invalid JSON or contract violations return a readable HTTP 422
+response. Only the fixed routes `/api/movies`, `/api/catalog` (legacy retail
+catalog), and `/api/bundle` are dispatched; other paths are rejected. The
+legacy retail catalog is separate from MovieLens and is not used as research
+input.

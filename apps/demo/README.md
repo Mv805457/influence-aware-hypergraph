@@ -1,90 +1,90 @@
-# Local four-screen demo
+# Local MovieLens demo
 
-The optional interface in `apps/demo/` has four screens: a local product/cart
-mockup, saved hypergraph-pipeline playback, saved poisoning/unlearning playback,
-and a precomputed Top-K results viewer. The cart is browser-memory-only. The
-three research screens read sanitized artifacts from `results/`; they never run
-data processing, graph construction, poisoning, training, unlearning, or
-evaluation. The server binds to loopback and exposes only fixed GET routes.
+This local app has two separate parts:
 
-This preserves the current research specification. The supplied architecture
-diagram's Amazon Video Games dataset and proposed model/attack/unlearning blocks
-are not activated by this demo. The supplied `archive.zip` is used only to fill
-the storefront catalog; its data does not generate research results.
+- **Films** browses the approved MovieLens title/genre catalog and keeps a
+  watchlist in browser memory. It does not collect or send user activity.
+- **Hypergraph, Poisoning, and Results** are viewers for sanitized,
+  precomputed exports. They never launch research jobs.
 
-## 1. Create the local storefront catalog
+MovieLens contains title and genre text, not poster artwork. The cards are
+generated from titles and genres; no fabricated posters are used. The app has
+an original film-journal design and does not use Letterboxd branding or assets.
 
-From the repository root, import the attached archive (adjust the path for your
-machine):
+## Requirements
 
-```powershell
-python apps/demo/shop_catalog.py --archive "C:\Users\madha\Downloads\archive.zip"
-```
+- Python 3.10 or newer. On Windows, use the official CPython distribution; an
+  MSYS Python can work for the app itself, but may not support the numerical
+  wheels required by research modules.
+- Install `requirements.txt` into the Python environment used for offline
+  research. The read-only app and catalog exporter use only the standard
+  library.
+- Download MovieLens directly from GroupLens. The dataset archive stays local
+  under the ignored `results/datasets/` directory and is checked against the
+  repository's SHA-256 allowlist.
 
-The importer reads `amazon.csv` directly from the ZIP without extracting it. It
-writes `results/shop-catalog.json`, which is gitignored. The catalog whitelist
-contains generated local product IDs, product names, category, prices, rating,
-rating count, and discount percentage. Source product IDs are used transiently
-for deduplication and discarded. Reviews, user identifiers/names, review text,
-images, links, and descriptions are excluded. Cart changes are not saved.
+## Build the film catalog
 
-The supplied archive is a mixed retail catalog with no Video Games category and
-does not meet the experiment's stated 10-core requirement. It must not be used
-as evidence for the research experiment.
-
-## 2. Supply completed offline experiment exports
-
-The repository currently contains no offline runner, completed experiment run,
-or trace producer. There are no valid research results to display. Do not create
-sample metrics or recommendations to populate the viewer.
-
-Once the offline evaluator has completed a run, it must write a reviewed JSON
-file matching [`DATA_CONTRACT.md`](DATA_CONTRACT.md) to:
-
-```text
-results/completed-run-exports/completed-run-export.json
-```
-
-Then export it with:
+From the repository root in PowerShell:
 
 ```powershell
-python apps/demo/export_demo_bundle.py --input results/completed-run-exports/completed-run-export.json
+New-Item -ItemType Directory -Force results/datasets | Out-Null
+Invoke-WebRequest https://files.grouplens.org/datasets/movielens/ml-1m.zip -OutFile results/datasets/ml-1m.zip
+$env:PYTHONPATH = 'src'
+python -B -m iahu.movie_catalog --dataset ml-1m --archive results/datasets/ml-1m.zip --world-seed 2026
 ```
 
-The exporter writes `results/demo-bundle.json` (schema version 2). It accepts
-deployable-tier results only and copies fields from explicit whitelists. Trace
-events are optional. If the offline pipeline has not recorded a trace, its
-screen explains that the trace is unavailable. The exporter does not calculate
-or invent values. Never include a vault path, hidden attacker identity, raw
-manifest, checkpoint path, or evaluator-only per-user label in the source file.
+For the smaller development set, download `https://files.grouplens.org/datasets/movielens/ml-100k.zip` and run the same command with `--dataset ml-100k --archive results/datasets/ml-100k.zip`.
 
-## 3. Run the demo
+The catalog includes all approved movie titles and genres, plus popularity
+counts from the clean positive training split. It excludes ratings, user IDs,
+demographics, and interaction histories.
+
+## Start the local viewer
 
 ```powershell
 python apps/demo/server.py --port 8000
 ```
 
-Open <http://127.0.0.1:8000>. The four screens are:
+Open `http://127.0.0.1:8000`. If port 8000 is occupied, choose another local
+port, such as `8765`. Stop the server with `Ctrl+C`.
 
-1. **Shop:** searchable product cards, category filter, quantity controls,
-   temporary cart, subtotal, and a demo-only checkout notice. It creates no
-   order and clears when the page reloads.
-2. **Hypergraph:** playback controls for exported `pipeline_trace` events.
-3. **Poisoning:** playback controls for exported `poisoning_trace` events.
-4. **Results:** same pseudonymous example user and target before/after Top-K,
-   target ranks, saved setting, aggregate metrics, and method elapsed time.
+The viewer has fixed GET routes for static assets and three local JSON files.
+It does not accept file paths, writes, training requests, or uploaded data.
+With no `results/demo-bundle.json`, the research sections show an explicit
+empty state.
 
-Playback advances only through stored event records. There is no live job UI or
-connection to the experiment package, model checkpoints, or vault. An empty
-catalog, missing bundle, or missing trace has a readable empty state; malformed
-or unsupported files are reported as errors.
+## Current research pipeline status
+
+The repository has dataset preprocessing, user-history and HOUR-inspired
+hypergraph builders, a BPR baseline, fake-account attacks, and ranking
+evaluation modules. These do not yet make a complete, valid IAHU experiment:
+the run orchestrator, identification, influence estimation, unlearning,
+recovery/validation gates, complete manifest, and sanitized export from a
+completed valid run are not implemented. There is no command that creates a
+research result bundle yet. Do not put the exploratory diagnostic run into
+the viewer or treat its failed exposure gate as a successful result.
+
+The guide's proposed fixed-epoch and validation choices, frozen exposure
+cohort, and staged path-influence estimate remain unresolved in
+`docs/decisions/0002-movielens-demo.md`. No headline claim should rely on them
+without team sign-off.
 
 ## Checks
 
+Standard-library demo checks:
+
 ```powershell
+python -B -m unittest tests.test_demo tests.test_movie_catalog -v
+```
+
+Full numerical and demo checks, after installing the research requirements:
+
+```powershell
+python -m pip install -r requirements.txt
+$env:PYTHONPATH = 'src'
 python -B -m unittest discover -s tests -v
 node --check apps/demo/app.js
 ```
 
-Generated catalogs, completed-run exports, and demo bundles live under ignored
-`results/` and should not be committed.
+No data archive, generated catalog, model state, or result bundle is committed.

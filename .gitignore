@@ -1,2 +1,8 @@
 /runs/
 /results/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.uv-cache-iahu/
+.tmp-iahu/

@@ -9,7 +9,13 @@ from pathlib import Path
 import sys
 from urllib.parse import urlsplit
 
-from contract import BUNDLE_SCHEMA_VERSION, ContractError, validate_bundle
+from contract import (
+    BUNDLE_SCHEMA_VERSION,
+    ContractError,
+    MovieCatalogError,
+    validate_bundle,
+    validate_movie_catalog,
+)
 from shop_catalog import CatalogError, validate_catalog
 
 
@@ -17,6 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 APP_DIR = Path(__file__).resolve().parent
 BUNDLE_PATH = REPO_ROOT / "results" / "demo-bundle.json"
 CATALOG_PATH = REPO_ROOT / "results" / "shop-catalog.json"
+MOVIE_CATALOG_PATH = REPO_ROOT / "results" / "movie-catalog.json"
 STATIC_FILES = {
     "/": (APP_DIR / "index.html", "text/html; charset=utf-8"),
     "/index.html": (APP_DIR / "index.html", "text/html; charset=utf-8"),
@@ -37,6 +44,9 @@ class DemoHandler(BaseHTTPRequestHandler):
             return
         if route == "/api/catalog":
             self._serve_catalog()
+            return
+        if route == "/api/movies":
+            self._serve_movies()
             return
         static_file = STATIC_FILES.get(route)
         if static_file is None:
@@ -102,6 +112,25 @@ class DemoHandler(BaseHTTPRequestHandler):
             catalog = validate_catalog(parsed)
         except CatalogError as error:
             self._send_json(422, {"error": f"Shop catalog does not match the data contract: {error}"})
+            return
+        self._send_json(200, catalog)
+
+    def _serve_movies(self) -> None:
+        try:
+            parsed = json.loads(MOVIE_CATALOG_PATH.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            self._send_json(200, {"schema_version": 1, "movies": []})
+            return
+        except json.JSONDecodeError as error:
+            self._send_json(422, {"error": f"Movie catalog is invalid JSON at line {error.lineno}, column {error.colno}."})
+            return
+        except OSError:
+            self._send_json(500, {"error": "Movie catalog could not be read."})
+            return
+        try:
+            catalog = validate_movie_catalog(parsed)
+        except MovieCatalogError as error:
+            self._send_json(422, {"error": f"Movie catalog does not match the data contract: {error}"})
             return
         self._send_json(200, catalog)
 

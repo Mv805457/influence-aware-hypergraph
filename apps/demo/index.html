@@ -3,35 +3,35 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light" />
-    <title>IAHU · Experiment Walkthrough</title>
+    <meta name="color-scheme" content="dark light" />
+    <title>Frame Ledger · IAHU Research Demo</title>
     <link rel="stylesheet" href="/styles.css" />
     <script src="/app.js" defer></script>
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="#shop" data-view-link="shop" aria-label="IAHU demo, shop view">
-        <span class="brand-mark" aria-hidden="true">IH</span>
-        <span><strong>IAHU Lab</strong><small>RECOMMENDER SYSTEM WALKTHROUGH</small></span>
+      <a class="brand" href="#films" data-view-link="shop" aria-label="Frame Ledger film journal">
+        <span class="brand-mark" aria-hidden="true">FL</span>
+        <span><strong>Frame Ledger</strong><small>A FILM JOURNAL · RESEARCH DEMO</small></span>
       </a>
       <div class="topbar-meta">
-        <span class="read-only-tag"><span class="status-dot"></span> Local · precomputed</span>
-        <span class="cart-counter" aria-live="polite"><span aria-hidden="true">▣</span> Cart <strong id="cart-count">0</strong></span>
+        <span class="read-only-tag"><span class="status-dot"></span> Local · offline playback</span>
+        <span class="cart-counter" aria-live="polite"><span aria-hidden="true">▣</span> Watchlist <strong id="cart-count">0</strong></span>
       </div>
     </header>
 
     <main class="app-shell">
       <section class="welcome-row">
         <div>
-          <div class="eyebrow">CAPSTONE DEMO · OFFLINE EXPERIMENT PLAYBACK</div>
-          <h1>From product interactions to unlearning results</h1>
-          <p>Explore a local shopping mockup, then walk through saved experiment artifacts. No experiment runs in this interface.</p>
+          <div class="eyebrow">CAPSTONE DEMO · MOVIELENS RESEARCH PLAYBACK</div>
+          <h1>Films, interactions, and the effect of unlearning</h1>
+          <p>Browse a local film catalog, then inspect saved hypergraph, attack, and recommendation results. This interface never runs an experiment.</p>
         </div>
         <div class="offline-stamp"><span class="stamp-icon" aria-hidden="true">◷</span><span><strong>Read-only research</strong><small>Training and evaluation stay offline</small></span></div>
       </section>
 
       <nav class="step-nav" aria-label="Demo sections">
-        <button class="step-link active" type="button" data-view="shop"><span class="step-number">01</span><span><strong>Shop</strong><small>Local cart UI</small></span></button>
+        <button class="step-link active" type="button" data-view="shop"><span class="step-number">01</span><span><strong>Films</strong><small>Browse &amp; save locally</small></span></button>
         <span class="step-connector" aria-hidden="true"></span>
         <button class="step-link" type="button" data-view="pipeline"><span class="step-number">02</span><span><strong>Hypergraph</strong><small>Saved pipeline trace</small></span></button>
         <span class="step-connector" aria-hidden="true"></span>
@@ -48,37 +48,41 @@
       </section>
 
       <section id="view-shop" class="view-section active" aria-labelledby="shop-title">
-        <div class="shop-hero">
+        <div class="film-hero">
           <div>
-            <div class="eyebrow light">A SMALL LOCAL STOREFRONT</div>
-            <h2 id="shop-title">Browse the catalog sample</h2>
-            <p>Search and add products to your temporary cart. Cart actions stay in this browser tab and never create an order.</p>
+            <div class="eyebrow light">A LOCAL MOVIE JOURNAL</div>
+            <h2 id="shop-title">Find your next film</h2>
+            <p>Browse titles from MovieLens, keep a temporary watchlist, and mark films watched. Activity stays in this tab and never becomes experiment input.</p>
           </div>
-          <div class="hero-badge"><span aria-hidden="true">✳</span><span>DEMO MODE<strong>No checkout or payment</strong></span></div>
+          <div class="hero-badge"><span aria-hidden="true">✦</span><span>FILM CATALOG<strong>Text cards · no poster files</strong></span></div>
         </div>
 
-        <div class="shop-layout">
-          <section class="catalog-panel panel" aria-label="Product catalog">
+        <div class="film-layout">
+          <section class="catalog-panel panel" aria-label="Movie catalog">
             <div class="catalog-toolbar">
-              <div><span class="eyebrow">LOCAL CATALOG</span><h3>Products <span id="catalog-count" class="count-label">—</span></h3></div>
+              <div><span class="eyebrow">MOVIELENS CATALOG</span><h3>Popular films <span id="catalog-count" class="count-label">—</span></h3></div>
               <div class="catalog-filters">
-                <label class="search-field"><span class="sr-only">Search products</span><span aria-hidden="true">⌕</span><input id="product-search" type="search" placeholder="Search products" autocomplete="off" /></label>
-                <label class="select-compact"><span class="sr-only">Filter by category</span><select id="category-filter"><option value="">All categories</option></select></label>
+                <label class="search-field"><span class="sr-only">Search films</span><span aria-hidden="true">⌕</span><input id="product-search" type="search" placeholder="Search films" autocomplete="off" /></label>
+                <label class="select-compact"><span class="sr-only">Filter by genre</span><select id="category-filter"><option value="">All genres</option></select></label>
               </div>
             </div>
-            <div id="catalog-message" class="inline-message" role="status" aria-live="polite">Loading product-only catalog…</div>
-            <div id="product-grid" class="product-grid" aria-live="polite"></div>
-            <div class="catalog-pagination"><span id="catalog-page-label">—</span><div><button id="products-prev" class="icon-button" type="button" aria-label="Previous products" disabled>←</button><button id="products-next" class="icon-button" type="button" aria-label="Next products" disabled>→</button></div></div>
+            <div class="movie-sort" role="group" aria-label="Sort films">
+              <button type="button" class="active" data-movie-sort="popular">Popular</button>
+              <button type="button" data-movie-sort="newest">Newest</button>
+              <button type="button" data-movie-sort="title">A–Z</button>
+            </div>
+            <div id="catalog-message" class="inline-message" role="status" aria-live="polite">Loading MovieLens catalog…</div>
+            <div id="product-grid" class="movie-grid" aria-live="polite"></div>
+            <div class="catalog-pagination"><span id="catalog-page-label">—</span><div><button id="products-prev" class="icon-button" type="button" aria-label="Previous films" disabled>←</button><button id="products-next" class="icon-button" type="button" aria-label="Next films" disabled>→</button></div></div>
           </section>
 
           <aside class="cart-panel panel" aria-labelledby="cart-title">
-            <div class="cart-heading"><div><span class="eyebrow">TEMPORARY SESSION</span><h3 id="cart-title">Your cart <span id="cart-items-label" class="count-label">(0)</span></h3></div><span class="cart-icon" aria-hidden="true">▤</span></div>
-            <div id="cart-list" class="cart-list"><p class="cart-empty">Your cart is empty. Add an item to see it here.</p></div>
-            <div class="cart-summary"><div><span>Subtotal</span><strong id="cart-subtotal">₹0.00</strong></div><small>Taxes and delivery are not calculated in this demo.</small><button id="checkout-button" class="checkout-button" type="button" disabled>Demo checkout <span aria-hidden="true">→</span></button><p id="checkout-note" class="checkout-note" role="status" aria-live="polite"></p></div>
-            <div class="privacy-note"><span aria-hidden="true">◈</span><span>Cart is held in memory only and clears when you reload.</span></div>
+            <div class="cart-heading"><div><span class="eyebrow">THIS BROWSER TAB ONLY</span><h3 id="cart-title">Your watchlist <span id="cart-items-label" class="count-label">(0)</span></h3></div><span class="cart-icon" aria-hidden="true">▤</span></div>
+            <div id="cart-list" class="cart-list"><p class="cart-empty">Your watchlist is empty. Add a film to save it here.</p></div>
+            <div class="privacy-note"><span aria-hidden="true">◈</span><span>Watchlist and watched marks are memory-only; refresh clears them.</span></div>
           </aside>
         </div>
-        <p class="source-note">Catalog display fields were imported from the supplied sample archive. The archive is not the specified Video Games experiment dataset; this storefront is visual context only.</p>
+        <p id="movie-source-note" class="source-note">Popularity is computed from clean MovieLens training interactions before an attack. MovieLens has titles and genres, not poster images; the cover art here is generated with CSS.</p>
       </section>
 
       <section id="view-pipeline" class="view-section" aria-labelledby="pipeline-title" hidden>

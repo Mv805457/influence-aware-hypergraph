@@ -111,6 +111,21 @@ class ContractTests(unittest.TestCase):
         empty = {"schema_version": 2, "scenarios": []}
         self.assertEqual(contract.validate_bundle(empty), empty)
 
+    def test_movie_catalog_contract_accepts_only_public_movie_fields(self) -> None:
+        catalog = {
+            "schema_version": 1,
+            "dataset": "ml-100k",
+            "dataset_role": "development",
+            "dataset_sha256": "a" * 64,
+            "popularity_source": "positive MovieLens training interactions before attack",
+            "world_seed": 17,
+            "movies": [{"id": 1, "title": "A Film (1999)", "year": 1999, "genres": ["Drama"], "popularity": 12}],
+        }
+        self.assertEqual(contract.validate_movie_catalog(catalog), catalog)
+        catalog["movies"][0]["user_id"] = 12
+        with self.assertRaisesRegex(contract.MovieCatalogError, "unsupported or missing fields"):
+            contract.validate_movie_catalog(catalog)
+
     def test_exporter_whitelists_and_drops_source_identifiers(self) -> None:
         bundle = exporter.export_bundle(completed_source())
         self.assertNotIn("id", bundle["scenarios"][0])
@@ -259,6 +274,26 @@ class MissingAndInvalidFileTests(unittest.TestCase):
         self.assertEqual(status, 422)
         self.assertIn("data contract", payload["error"])
 
+    def test_missing_movie_catalog_returns_empty_movie_list(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT / "apps" / "demo") as temp_dir:
+            with patch.object(server, "MOVIE_CATALOG_PATH", Path(temp_dir) / "missing.json"):
+                handler = bare_handler("/api/movies")
+                server.DemoHandler._serve_movies(handler)
+        status, payload = handler._send_json.call_args.args
+        self.assertEqual(status, 200)
+        self.assertEqual(payload, {"schema_version": 1, "movies": []})
+
+    def test_invalid_movie_catalog_returns_readable_error(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT / "apps" / "demo") as temp_dir:
+            bad_file = Path(temp_dir) / "movie-catalog.json"
+            bad_file.write_text('{"schema_version": 1, "movies": [{"user_id": "secret"}]}', encoding="utf-8")
+            with patch.object(server, "MOVIE_CATALOG_PATH", bad_file):
+                handler = bare_handler("/api/movies")
+                server.DemoHandler._serve_movies(handler)
+        status, payload = handler._send_json.call_args.args
+        self.assertEqual(status, 422)
+        self.assertIn("data contract", payload["error"])
+
 
 class ShopCatalogTests(unittest.TestCase):
     def test_zip_import_keeps_only_product_display_fields(self) -> None:
@@ -303,18 +338,23 @@ class ReadOnlyBoundaryTests(unittest.TestCase):
         self.assertEqual(set(server.STATIC_FILES), {"/", "/index.html", "/app.js", "/styles.css"})
 
     def test_only_fixed_read_only_api_routes_are_dispatched(self) -> None:
-        for route, expected in (("/api/bundle", "_serve_bundle"), ("/api/catalog", "_serve_catalog")):
+        for route, expected in (
+            ("/api/bundle", "_serve_bundle"),
+            ("/api/catalog", "_serve_catalog"),
+            ("/api/movies", "_serve_movies"),
+        ):
             with self.subTest(route=route):
                 handler = bare_handler(route)
                 setattr(handler, expected, Mock())
                 server.DemoHandler.do_GET(handler)
                 getattr(handler, expected).assert_called_once()
 
-    def test_frontend_uses_fixed_get_routes_and_in_memory_cart(self) -> None:
+    def test_frontend_uses_fixed_get_routes_and_in_memory_watchlist(self) -> None:
         source = (ROOT / "apps" / "demo" / "app.js").read_text(encoding="utf-8")
-        self.assertIn('fetch("/api/catalog"', source)
+        self.assertIn('fetch("/api/movies"', source)
         self.assertIn('fetch("/api/bundle"', source)
-        self.assertIn("cart: new Map()", source)
+        self.assertIn("watchlist: new Map()", source)
+        self.assertIn("watched: new Set()", source)
         for forbidden in ("localStorage", "sessionStorage", "XMLHttpRequest", "innerHTML", "checkpoint_path", "vault/"):
             self.assertNotIn(forbidden, source)
 
