@@ -64,10 +64,16 @@ the rank was unavailable, while a rank above K means the target is outside the
 displayed list.
 
 Metric names are whitelisted in `contract.py`, including residual attack
-ratio, hidden-source recall, precision, benign weight loss, utility retention,
-control-item drift, NDCG@20, Recall@20, Top-K Jaccard, cost ratio, and
-membership AUC gap. The UI labels metrics and elapsed time and does no
-evaluation itself.
+ratio, hidden-source recall, extension precision, benign weight loss, utility
+retention, NDCG@20, Recall@20, target exposure@20, target mean rank, Top-K
+Jaccard, cost ratio, membership AUC gap, and the staged predicted exposure
+change from influence. The latter is the signed trapezoidal path estimate of
+the frozen-cohort exposure surrogate over sources whose weights were reduced.
+It labels an influence estimate, not the separately measured aggregate
+target-exposure change. The saved result also reports the post-recovery frozen
+cohort surrogate and the same surrogate after excluding the selected extension
+set; their difference makes a shrinking-cohort artifact visible. The UI labels
+metrics and elapsed time and does no evaluation itself.
 
 Pipeline and poisoning traces are playback events only. Each event has a
 fixed step name, whitelisted aggregate counts, and elapsed seconds. No IDs,
@@ -76,10 +82,13 @@ contents, raw manifests/paths, or checkpoints may appear in the bundle. The
 offline exporter assigns `Example user 01`; this is a curated evaluation
 example, not a deployable user input.
 
-The current repository does **not** yet have a completed-run producer for
-this schema. The exploratory MovieLens diagnostic did not pass its target
-exposure gate and is intentionally not exported. Keep the result view empty
-until a valid run is produced; do not copy test fixtures or diagnostic values
+The offline runner in `src/iahu/runner.py` is now a single-world source
+producer. It writes a completed-run source only after G1, G2, V1, influence
+reliability, and its static import-boundary check pass. The full target/seed
+grid and V2–V4 validation campaign are still open, and no valid main run has
+been produced yet. The earlier exploratory MovieLens diagnostic failed its
+target-exposure gate and remains excluded. Keep the result view empty until a
+manifest marks a run valid; do not copy test fixtures or diagnostic values
 into `results/demo-bundle.json`.
 
 ## Completed-run source and export
@@ -87,10 +96,10 @@ into `results/demo-bundle.json`.
 The sanitizer expects a JSON source with
 `schema_version: "completed-run-export-v1"` beneath
 `results/completed-run-exports/`. It copies only the approved fields and
-writes `results/demo-bundle.json`. The current exporter is a sanitizer, not a
-run producer, and its test fixtures are not experiment evidence. The valid
-source format must only be populated from saved offline outputs after all
-validity gates and manifest checks pass.
+writes `results/demo-bundle.json`. The runner creates that source from its
+saved aggregate run output only after the hard gates pass; the sanitizer
+remains a whitelist boundary, and its test fixtures are not experiment
+evidence.
 
 ## Missing or malformed files
 

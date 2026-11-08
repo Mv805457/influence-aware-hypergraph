@@ -39,6 +39,7 @@ class Hypergraph:
     user_ids: tuple[int, ...]
     item_ids: tuple[int, ...]
     edges: tuple[tuple[Membership, ...], ...]
+    policy: str = "frozen"
 
     @property
     def num_vertices(self) -> int:
@@ -284,4 +285,5 @@ def build_hour_inspired(
         user_ids,
         item_ids,
         nonempty_edges,
+        policy,
     )
