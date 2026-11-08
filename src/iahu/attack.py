@@ -42,8 +42,11 @@ def inject_fake_accounts(
         raise ValueError("attack rate must be finite and non-negative")
     if target_item_id is None:
         raise ValueError("attack and matched placebo require the paired target item")
-    if rule not in {"atk1_random", "atk2_bandwagon", "atk3_popularity"}:
-        raise ValueError("supported attack rules are ATK-1, ATK-2, and ATK-3")
+    if rule not in {
+        "atk1_random", "atk2_bandwagon", "atk3_popularity",
+        "atk4_coordinated", "atk5_overlap_minimizing",
+    }:
+        raise ValueError("supported attack rules are ATK-1 through ATK-5")
 
     users = sorted({row.user_id for row in benign_train})
     items = sorted({row.item_id for row in benign_train})
@@ -62,6 +65,15 @@ def inject_fake_accounts(
     top_count = max(1, math.ceil(0.01 * len(items)))
     popular_items = sorted(items, key=lambda item: (-item_popularity[item], item))[:top_count]
     popular_pool = [item for item in popular_items if item != target_item_id]
+    coordinated_pool: list[int] = []
+    if rule == "atk4_coordinated":
+        coordinated_pool = _weighted_sample(
+            target_pool, item_popularity, min(3 * profile_length, len(target_pool)), rng
+        )
+    overlap_order = list(target_pool)
+    if rule == "atk5_overlap_minimizing":
+        rng.shuffle(overlap_order)
+    overlap_cursor = 0
 
     next_id = max(users) + 1
     appended: list[Interaction] = []
@@ -77,13 +89,26 @@ def inject_fake_accounts(
             profile = rng.sample(popular_pool, bandwagon_count)
             remaining_pool = [item for item in target_pool if item not in set(profile)]
             profile.extend(rng.sample(remaining_pool, filler_count - bandwagon_count))
+        elif rule == "atk3_popularity":
+            profile = _weighted_sample(target_pool, item_popularity, filler_count, rng)
+        elif rule == "atk4_coordinated":
+            shared_count = min(round(0.8 * filler_count), filler_count, len(coordinated_pool))
+            profile = rng.sample(coordinated_pool, shared_count)
+            remaining_pool = [item for item in target_pool if item not in set(profile)]
+            profile.extend(_weighted_sample(
+                remaining_pool, item_popularity, filler_count - shared_count, rng
+            ))
         else:
-            weighted_keys = []
-            for item_id in target_pool:
-                weight = item_popularity[item_id]
-                key = -math.log(max(rng.random(), 1e-15)) / weight
-                weighted_keys.append((key, item_id))
-            profile = [item for _key, item in sorted(weighted_keys)[:filler_count]]
+            profile = []
+            while len(profile) < filler_count:
+                if overlap_cursor == len(overlap_order):
+                    overlap_order = list(target_pool)
+                    rng.shuffle(overlap_order)
+                    overlap_cursor = 0
+                item_id = overlap_order[overlap_cursor]
+                overlap_cursor += 1
+                if item_id not in profile:
+                    profile.append(item_id)
         if not placebo and target_item_id is not None:
             profile.append(target_item_id)
         for item_id in profile:
@@ -111,3 +136,21 @@ def inject_fake_accounts(
         rule=rule,
         placebo=placebo,
     )
+
+
+def _weighted_sample(
+    items: Sequence[int], weights: dict[int, int], count: int, rng: random.Random
+) -> list[int]:
+    """Weighted sampling without replacement via exponential-race keys."""
+    if count < 0 or count > len(items):
+        raise ValueError("weighted sample size exceeds its item pool")
+    if count == 0:
+        return []
+    keys = []
+    for item_id in items:
+        weight = weights[item_id]
+        if weight > 0:
+            keys.append((-math.log(max(rng.random(), 1e-15)) / weight, item_id))
+    if len(keys) < count:
+        raise ValueError("weighted sample has fewer positive-weight items than requested")
+    return [item for _key, item in sorted(keys)[:count]]

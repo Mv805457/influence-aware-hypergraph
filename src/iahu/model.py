@@ -135,6 +135,8 @@ def fit_bpr(
     *,
     config: BPRConfig,
     seed: int,
+    source_weights: Sequence[float] | None = None,
+    initial_theta=None,
 ) -> TrainedModel:
     """Train the specified linear propagation model with sampled BPR negatives."""
     import numpy as np
@@ -146,19 +148,37 @@ def fit_bpr(
     item_ids = tuple(operator.item_ids)
     user_index = {value: index for index, value in enumerate(user_ids)}
     item_index = {value: index for index, value in enumerate(item_ids)}
+    if source_weights is None:
+        source_weights_array = np.ones(len(user_ids), dtype=np.float32)
+    else:
+        source_weights_array = np.asarray(source_weights, dtype=np.float32)
+        if source_weights_array.shape != (len(user_ids),):
+            raise ValueError("source weight count must equal the operator user count")
+        if not np.all(np.isfinite(source_weights_array)) or np.any(source_weights_array < 0) or np.any(source_weights_array > 1):
+            raise ValueError("source weights must be finite and in [0, 1]")
+    if isinstance(operator, LightGCNOperator) and not np.all(source_weights_array == 1):
+        raise ValueError("LightGCN comparison operator does not support source reweighting")
     positives_u = np.fromiter((user_index[row.user_id] for row in rows), dtype=np.int64)
     positives_i = np.fromiter((item_index[row.item_id] for row in rows), dtype=np.int64)
     history_mutable: dict[int, set[int]] = {user_id: set() for user_id in user_ids}
     internal_history: list[set[int]] = [set() for _ in user_ids]
     for row in rows:
-        history_mutable[row.user_id].add(row.item_id)
-        internal_history[user_index[row.user_id]].add(item_index[row.item_id])
+        if source_weights_array[user_index[row.user_id]] > 0:
+            history_mutable[row.user_id].add(row.item_id)
+            internal_history[user_index[row.user_id]].add(item_index[row.item_id])
     if any(len(items) >= len(item_ids) for items in internal_history):
         raise ValueError("a user has no eligible negative item")
 
     rng = np.random.default_rng(seed)
-    propagation = operator.prepare_numpy()
-    theta = rng.normal(0.0, 0.01, size=(operator.num_vertices, config.dimension)).astype(np.float32)
+    propagation = operator.prepare_numpy(
+        source_weights_array if isinstance(operator, Hypergraph) else None
+    )
+    if initial_theta is None:
+        theta = rng.normal(0.0, 0.01, size=(operator.num_vertices, config.dimension)).astype(np.float32)
+    else:
+        theta = np.asarray(initial_theta, dtype=np.float32).copy()
+        if theta.shape != (operator.num_vertices, config.dimension) or not np.all(np.isfinite(theta)):
+            raise ValueError("initial_theta has the wrong shape or contains non-finite values")
     first_moment = np.zeros_like(theta)
     second_moment = np.zeros_like(theta)
     beta1, beta2, adam_eps = 0.9, 0.999, 1e-8
@@ -206,10 +226,13 @@ def fit_bpr(
             differences = np.sum(user_vectors * (positive_vectors - negative_vectors), axis=1)
             # -log(sigmoid(difference)) = logaddexp(0, -difference).
             batch_loss = np.logaddexp(0.0, -differences)
-            total_loss += float(batch_loss.sum())
+            batch_source_weights = source_weights_array[batch_users]
+            total_loss += float((batch_loss * batch_source_weights).sum())
             seen_count += len(batch)
 
-            multiplier = (1.0 / (1.0 + np.exp(np.clip(-differences, -40.0, 40.0))) - 1.0)
+            multiplier = (
+                1.0 / (1.0 + np.exp(np.clip(-differences, -40.0, 40.0))) - 1.0
+            ) * batch_source_weights
             grad_encoded = np.zeros_like(encoded)
             np.add.at(
                 grad_encoded,

@@ -28,13 +28,17 @@ Date: 2026-11-08
 
 - The CLI requires an explicit world seed. No seed has been preregistered by
   this decision record.
-- The offline guide marks a fixed epoch count and its revised validation
-  protocol as `[P3]` proposals. They remain unaccepted here. Results that rely
-  on them cannot be described as confirmed headline results until the team
-  accepts or replaces those choices.
-- The frozen exposure cohort and staged path estimate are also `[P3]`
-  proposals. They remain out of the confirmed method until explicitly signed
-  off. Their formulas are not silently enabled by this demo work.
+- On 2026-11-08, the user explicitly adopted the Part 3 proposed defaults for
+  new runs: choose one fixed epoch count on MovieLens-100K development worlds;
+  use the revised validation protocol; freeze the exposure cohort at the
+  polished poisoned state; and use the staged path-influence estimate matching
+  the staged operator. Implementations and manifests must identify these as
+  adopted Part 3 choices. Earlier exploratory diagnostics are not
+  retroactively reclassified.
+- Open choices still requiring project-level preregistration include the
+  development-selected epoch count, operating point, seeds, and validation
+  thresholds for V2/V4. The guide requires G1/G2 thresholds and validity rules
+  to be frozen before main runs; do not select them after seeing main outcomes.
 - The guide's initial BPR, attack, influence, and unlearning settings are
   implementation assumptions; they must be recorded in the run config and
   surfaced in the manifest before they are used for research claims.
