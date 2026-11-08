@@ -161,6 +161,27 @@ class ContractTests(unittest.TestCase):
             [{"step": "poisoning_simulation", "counts": {"injected_interactions": 12}, "elapsed_seconds": 0.5}],
         )
 
+    def test_target_aggregate_metrics_are_supported_by_the_demo_contract(self) -> None:
+        source = completed_source()
+        source["scenarios"][0]["methods"][0]["aggregate_metrics"] = {
+            "target_exposure_at_20": 0.25,
+            "target_mean_rank": 34.5,
+            "staged_predicted_exposure_change": -0.08,
+            "frozen_cohort_exposure_surrogate": 0.31,
+            "frozen_cohort_minus_extensions_exposure_surrogate": 0.29,
+        }
+        bundle = exporter.export_bundle(source)
+        self.assertEqual(
+            bundle["scenarios"][0]["methods"][0]["aggregate_metrics"],
+            {
+                "target_exposure_at_20": 0.25,
+                "target_mean_rank": 34.5,
+                "staged_predicted_exposure_change": -0.08,
+                "frozen_cohort_exposure_surrogate": 0.31,
+                "frozen_cohort_minus_extensions_exposure_surrogate": 0.29,
+            },
+        )
+
     def test_oracle_tier_is_rejected(self) -> None:
         source = completed_source()
         source["scenarios"][0]["tier"] = "oracle"
