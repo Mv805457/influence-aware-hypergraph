@@ -12,11 +12,16 @@ source path for the CLI:
 
 ```powershell
 uv python install 3.12
-uv venv --python 3.12 .venv
-.\.venv\Scripts\Activate.ps1
-uv pip install -r requirements.txt
+uv venv --python 3.12 --clear .venv
+$py = (Resolve-Path .\.venv\Scripts\python.exe).Path
+uv pip install --python $py -r requirements.txt
 $env:PYTHONPATH = 'src'
+& $py -c "import numpy, scipy, sklearn, torch; print('Dependencies ready')"
 ```
+
+Use `$py` explicitly for the commands below. This ensures PowerShell runs the
+project environment even when another Python installation or a Windows app
+execution alias appears earlier on `PATH`.
 
 The two checksum-pinned MovieLens archives belong under the ignored
 `results/datasets/` folder. Nothing in the pipeline accepts the storefront
@@ -25,47 +30,71 @@ archive as research data.
 1. Choose the fixed epoch count once on five MovieLens-100K development worlds:
 
 ```powershell
-python -B -m iahu.runner select-epochs `
+& $py -B -m iahu.runner select-epochs `
   --archive results/datasets/ml-100k.zip `
   --parent-seed 20261108 `
   --output results/preregistration/e-star-ml-100k.json
 ```
 
-2. Run the clean-model gate on five paired MovieLens-1M worlds. It tunes plain
-LightGCN on the documented 12-configuration budget and writes a report even
-when G1 fails:
+2. Select the UH/BPR profile on five MovieLens-100K development worlds. It
+uses the guide's 12-setting grid for dimension, propagation layers, and learning
+rate while keeping regularization and batch size fixed:
 
 ```powershell
 $epochs = (Get-Content results/preregistration/e-star-ml-100k.json | ConvertFrom-Json).selected_epochs
-python -B -m iahu.runner g1 `
+& $py -B -m iahu.runner select-uh-config `
+  --archive results/datasets/ml-100k.zip `
+  --epochs $epochs `
+  --parent-seed 20261111 `
+  --output results/preregistration/uh-profile-ml-100k.json
+```
+
+The command writes a progress file alongside the profile while the 60
+development fits run. Then rerun the clean-model gate on five paired
+MovieLens-1M worlds. The existing local G1 report already contains the
+matching LightGCN 12-config results for these seeds, so `--reuse-lightgcn-from`
+reuses only those comparison values and refits UH with the newly selected
+profile. Omit that option to repeat the full LightGCN search:
+
+```powershell
+& $py -B -m iahu.runner g1 `
   --archive results/datasets/ml-1m.zip `
   --epochs $epochs `
   --parent-seed 20261109 `
-  --output results/gates/g1-ml-1m.json
+  --uh-profile results/preregistration/uh-profile-ml-100k.json `
+  --reuse-lightgcn-from results/gates/g1-ml-1m.json `
+  --output results/gates/g1-ml-1m-profiled.json
 ```
 
 While G1 runs, its latest candidate and completed-seed counts are written to
-`results/gates/g1-ml-1m.json.progress.json`. The progress file is removed after
-the final report is saved.
+`results/gates/g1-ml-1m-profiled.json.progress.json`. The progress file is
+removed after the final report is saved.
+
+The G1 command returns exit code 3 when its gate fails, while preserving the
+report. In this checkout, the saved development profile yields a 6.07% NDCG
+gap against the 5% limit, so **do not run step 4 or claim a valid demo run**
+until an approved development-only profile passes G1. The main-run gate also
+checks the exact profile hash and settings.
 
 3. Run the hard convex influence validation:
 
 ```powershell
-python -B -m iahu.runner v1 --output results/gates/v1-convex.json
+& $py -B -m iahu.runner v1 --output results/gates/v1-convex.json
 ```
 
 4. Run one main-candidate world with the guide's centre identification setting
 and ATK-3 at the 3% attack size:
 
 ```powershell
-python -B -m iahu.runner run `
+& $py -B -m iahu.runner run `
   --archive results/datasets/ml-1m.zip `
   --dataset ml-1m `
   --parent-seed 20261110 `
   --attack atk3_popularity `
   --alpha 0.03 `
   --construction user_history `
-  --g1-report results/gates/g1-ml-1m.json
+  --uh-profile results/preregistration/uh-profile-ml-100k.json `
+  --g1-report results/gates/g1-ml-1m-profiled.json
 ```
 
 Every attempted world writes a manifest under `results/runs/`. Failed gates
@@ -77,8 +106,8 @@ remain recorded as invalid. For debugging a failed G1/G2 world, add
 ```powershell
 $runExport = Get-ChildItem results/completed-run-exports -Filter '*.json' |
   Sort-Object LastWriteTime -Descending | Select-Object -First 1
-python apps/demo/export_demo_bundle.py --input $runExport.FullName
-python apps/demo/server.py --port 8000
+& $py apps/demo/export_demo_bundle.py --input $runExport.FullName
+& $py apps/demo/server.py --port 8000
 ```
 
 Open `http://127.0.0.1:8000`. If no run passes the gates, the app keeps its
@@ -91,21 +120,21 @@ The optional cart/catalog screen uses a separate sanitized retail catalog. It
 is not part of the MovieLens research pipeline:
 
 ```powershell
-python apps/demo/shop_catalog.py --archive 'C:\path\to\archive.zip'
+& $py apps/demo/shop_catalog.py --archive 'C:\path\to\archive.zip'
 ```
 
 ## Checks
 
 ```powershell
 $env:PYTHONPATH = 'src'
-python -B -m unittest discover -s tests -v
+& $py -B -m unittest discover -s tests -v
 node --check apps/demo/app.js
 git diff --check
 ```
 
 ## Current research status
 
-The CLI now selects a development epoch count, runs G1/G2 controls, records
+The CLI now selects development epochs and a UH profile, runs G1/G2 controls, records
 invalid worlds, performs visible-only staged removal/reweighting with mass and
 utility rollback guards, and exports only runs marked valid. The Part 3 fixed
 epoch, revised validation, frozen exposure cohort, and staged path-influence
