@@ -26,4 +26,265 @@ class BPRConfig:
         if not math.isfinite(self.learning_rate) or self.learning_rate <= 0:
             raise ValueError("learning rate must be positive and finite")
         if not math.isfinite(self.regularization) or self.regularization < 0:
-            raise ValumµÛnm¢G§²ÚîÆ­yÑ½ÉÐA…Ñ ()I==P€ôA…Ñ ¡}}™¥±•}|¤¹É•Í½±Ù” ¤¹Á…É•¹ÑÍlÅt)ÍåÌ¹Á…Ñ ¹¥¹Í•ÉÐ À°ÍÑÈ¡I==P€¼€‰ÍÉŒˆ¤¤()™É½´¥…¡Ô¹™±…¥¹œ¥µÁ½ÉÐY¥Í¥‰±•±…œ°Y¥Í¥‰±•±…M•Ð€€Œ¹½Å„èÐÀÈ)™É½´¥…¡Ô¹¡åÁ•ÉÉ…Á ¥µÁ½ÉÐ‰Õ¥±‘}ÕÍ•É}¡¥ÍÑ½Éä€€Œ¹½Å„èÐÀÈ)™É½´¥…¡Ô¹µ½‘•°¥µÁ½ÉÐ	AI½¹™¥œ°™¥Ñ}‰ÁÈ€€Œ¹½Å„èÐÀÈ)™É½´¥…¡Ô¹Õ¹±•…É¸¥µÁ½ÉÐ€ €€Œ¹½Å„èÐÀÈ(€€€MÑ…•‘U¹±•…É¹½¹™¥œ°(€€€U¹±•…É¹	Õ‘•Ð°(€€€Y¥Í¥‰±•áÁ•É¥µ•¹Ð°(€€€‰Õ¥±‘}Á±…¸°(€€€ÉÕ¹}ÍÑ…•‘}Õ¹±•…É¹¥¹œ°(¤)™É½´¥…¡Ô¹‘…Ñ„¥µÁ½ÉÐ%¹Ñ•É…Ñ¥½¸€€Œ¹½Å„èÐÀÈ)¥µÁ½ÉÐ¹ÕµÁä…Ì¹À€€Œ¹½Å„èÐÀÈ)¥µÁ½ÉÐÑ½É €€Œ¹½Å„èÐÀÈ(()±…ÍÌU¹±•…É¹A±…¹Q•ÍÑÌ¡Õ¹¥ÑÑ•ÍÐ¹Q•ÍÑ…Í”¤è(€€€‘•˜Í•ÑUÀ¡Í•±˜¤€´ø9½¹”è(€€€€€€€Í•±˜¹™±…Ì€ôY¥Í¥‰±•±…M•Ð ¡Y¥Í¥‰±•±…œ ÄÀ°€Ä¸À¤°Y¥Í¥‰±•±…œ ÄÄ°€À¸Ô¤¤°€‰Í½™Ðˆ¤(€€€€€€€Í•±˜¹Í½É•Ì€ôìÄÀè€À¸ää°€ÄÄè€À¸äà°€ÄÈè€À¸ä°€ÄÌè€À¸Ð°€ÄÐè€À¸Áô((€€€‘•˜Ñ•ÍÑ}É•µ½Ù…±}¥¹±Õ‘•Í}™±…Í}…¹‘}Ñ½Á}Í½É•‘}•áÑ•¹Í¥½¹Ì¡Í•±˜¤€´ø9½¹”è(€€€€€€€Á±…¸€ô‰Õ¥±‘}Á±…¸¡Í•±˜¹™±…Ì°Í•±˜¹Í½É•Ì°U¹±•…É¹	Õ‘•Ð¡•áÑ•¹Í¥½¹}É…Ñ¥¼ôÄ¤°½Á•É…Ñ½Èô‰É•µ½Ù…°ˆ°Í••ôÌ¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑÅÕ…°¡Á±…¸¹™±…•‘}ÕÍ•ÉÌ°ìÄÀ°€ÄÅô¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑÅÕ…°¡Í•Ð¡Á±…¸¹•áÑ•¹Í¥½¹}ÕÍ•ÉÌ¤°ìÄÈ°€ÄÍô¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑÅÕ…°¡‘¥Ð¡Á±…¸¹Ý•¥¡Ñ}µ…À¤°ìÄÀè€À°€ÄÄè€À°€ÄÈè€À°€ÄÌè€Áô¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑÅÕ…°¡Á±…¸¹Ý•¥¡ÑÍ}™½È  ÄÀ°€ÄÄ°€ÄÈ°€ÄÌ°€ÄÐ¤¤°€ À°€À°€À°€À°€Ä¤¤((€€€‘•˜Ñ•ÍÑ}É•Ý•¥¡Ñ¥¹}ÕÍ•Í}™±…}½¹™¥‘•¹•}…¹‘}‰½Õ¹‘•‘}•áÑ•¹Í¥½¹}Ý•¥¡ÑÌ¡Í•±˜¤€´ø9½¹”è(€€€€€€€Á±…¸€ô‰Õ¥±‘}Á±…¸¡Í•±˜¹™±…Ì°Í•±˜¹Í½É•Ì°U¹±•…É¹	Õ‘•Ð¡•áÑ•¹Í¥½¹}É…Ñ¥¼ôÄ¤°½Á•É…Ñ½Èô‰É•Ý•¥¡Ñ¥¹œˆ°Í••ôÌ¤(€€€€€€€Ý•¥¡ÑÌ€ô‘¥Ð¡Á±…¸¹Ý•¥¡Ñ}µ…À¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑ±µ½ÍÑÅÕ…°¡Ý•¥¡ÑÍlÄÁt°€À¸È¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑ±µ½ÍÑÅÕ…°¡Ý•¥¡ÑÍlÄÅt°€À¸Ø¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑ±µ½ÍÑÅÕ…°¡Ý•¥¡ÑÍlÄÉt°€À¸Ä¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑ±µ½ÍÑÅÕ…°¡Ý•¥¡ÑÍlÄÍt°€À¸Ø¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑQÉÕ”¡…±° À¸ÀÔ€ðôÝ•¥¡Ð€ðô€Ä™½ÈÝ•¥¡Ð¥¸Ý•¥¡ÑÌ¹Ù…±Õ•Ì ¤¤¤((€€€‘•˜Ñ•ÍÑ}•µÁÑå}™±…Í}…É•}É•™ÕÍ•¡Í•±˜¤€´ø9½¹”è(€€€€€€€Ý¥Ñ Í•±˜¹…ÍÍ•ÉÑI…¥Í•ÍI••à¡Y…±Õ•ÉÉ½È°€‰%¹ÍÕ™™¥¥•¹Ñ±…Ìˆ¤è(€€€€€€€€€€€‰Õ¥±‘}Á±…¸¡Y¥Í¥‰±•±…M•Ð  ¤°€‰¡…Éˆ¤°íô°U¹±•…É¹	Õ‘•Ð ¤°½Á•É…Ñ½Èô‰É•µ½Ù…°ˆ°Í••ôÀ¤((€€€‘•˜Ñ•ÍÑ}ÍÑ…•‘}•áÑ•¹Í¥½¹}±¥µ¥Ñ}…ÁÍ}•…¡}ÍÑ…•}Ý¥Ñ¡½ÕÑ}¡…¹¥¹}™±…}Ý•¥¡ÑÌ¡Í•±˜¤€´ø9½¹”è(€€€€€€€Á±…¸€ô‰Õ¥±‘}Á±…¸ (€€€€€€€€€€€Í•±˜¹™±…Ì°(€€€€€€€€€€€Í•±˜¹Í½É•Ì°(€€€€€€€€€€€U¹±•…É¹	Õ‘•Ð¡•áÑ•¹Í¥½¹}É…Ñ¥¼ôÄ¤°(€€€€€€€€€€€½Á•É…Ñ½Èô‰É•Ý•¥¡Ñ¥¹œˆ°(€€€€€€€€€€€Í••ôÀ°(€€€€€€€€€€€•áÑ•¹Í¥½¹}±¥µ¥ÐôÄ°(€€€€€€€€¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑÅÕ…°¡±•¸¡Á±…¸¹•áÑ•¹Í¥½¹}ÕÍ•ÉÌ¤°€Ä¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑ±µ½ÍÑÅÕ…°¡‘¥Ð¡Á±…¸¹Ý•¥¡Ñ}µ…À¥lÄÁt°€À¸È¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑ±µ½ÍÑÅÕ…°¡‘¥Ð¡Á±…¸¹Ý•¥¡Ñ}µ…À¥lÄÅt°€À¸Ø¤((€€€‘•˜Ñ•ÍÑ}ÍÑ…•‘}•áÑ•¹Í¥½¹}±¥µ¥Ñ}µÕÍÑ}‰•}¹½¹¹•…Ñ¥Ù”¡Í•±˜¤€´ø9½¹”è(€€€€€€€Ý¥Ñ Í•±˜¹…ÍÍ•ÉÑI…¥Í•ÍI••à¡Y…±Õ•ÉÉ½È°€‰•áÑ•¹Í¥½¹}±¥µ¥Ðˆ¤è(€€€€€€€€€€€‰Õ¥±‘}Á±…¸ (€€€€€€€€€€€€€€€Í•±˜¹™±…Ì°Í•±˜¹Í½É•Ì°U¹±•…É¹	Õ‘•Ð ¤°(€€€€€€€€€€€€€€€½Á•É…Ñ½Èô‰É•µ½Ù…°ˆ°Í••ôÀ°•áÑ•¹Í¥½¹}±¥µ¥Ðô´Ä°(€€€€€€€€€€€€¤((€€€‘•˜Ñ•ÍÑ}¥¹Ù…±¥‘}Í½É•Í}…¹‘}½Á•É…Ñ½ÉÍ}…É•}É•©•Ñ•¡Í•±˜¤€´ø9½¹”è(€€€€€€€Ý¥Ñ Í•±˜¹…ÍÍ•ÉÑI…¥Í•ÍI••à¡Y…±Õ•ÉÉ½È°È‰¥¸qlÀ°€Åqtˆ¤è(€€€€€€€€€€€‰Õ¥±‘}Á±…¸¡Í•±˜¹™±…Ì°ìÄÈè€Ä¸Åô°U¹±•…É¹	Õ‘•Ð ¤°½Á•É…Ñ½Èô‰É•µ½Ù…°ˆ°Í••ôÀ¤(€€€€€€€Ý¥Ñ Í•±˜¹…ÍÍ•ÉÑI…¥Í•ÍI••à¡Y…±Õ•ÉÉ½È°€‰½Á•É…Ñ½Èˆ¤è(€€€€€€€€€€€‰Õ¥±‘}Á±…¸¡Í•±˜¹™±…Ì°íô°U¹±•…É¹	Õ‘•Ð ¤°½Á•É…Ñ½Èô‰½É…±”ˆ°Í••ôÀ¤(()±…ÍÌY¥Í¥‰±•MÑ…•‘É¥Ù•ÉQ•ÍÑÌ¡Õ¹¥ÑÑ•ÍÐ¹Q•ÍÑ…Í”¤è(€€€‘•˜Ñ•ÍÑ}•µÁÑå}Ù¥Í¥‰±•}™±…Í}É•™ÕÍ•}Ý¥Ñ¡½ÕÑ}¡…¹¥¹}µ½‘•°¡Í•±˜¤€´ø9½¹”è(€€€€€€€É½ÝÌ€ô€ (€€€€€€€€€€€%¹Ñ•É…Ñ¥½¸ Ä°€Ä°€Ô°9½¹”¤°%¹Ñ•É…Ñ¥½¸ Ä°€È°€Ô°9½¹”¤°%¹Ñ•É…Ñ¥½¸ Ä°€Ô°€Ô°9½¹”¤°(€€€€€€€€€€€%¹Ñ•É…Ñ¥½¸ È°€Ä°€Ô°9½¹”¤°%¹Ñ•É…Ñ¥½¸ È°€Ì°€Ô°9½¹”¤°(€€€€€€€€€€€%¹Ñ•É…Ñ¥½¸ Ì°€È°€Ô°9½¹”¤°%¹Ñ•É…Ñ¥½¸ Ì°€Ð°€Ô°9½¹”¤°(€€€€€€€€¤(€€€€€€€É…Á €ô‰Õ¥±‘}ÕÍ•É}¡¥ÍÑ½Éä¡É½ÝÌ¤(€€€€€€€µ½‘•°€ô™¥Ñ}‰ÁÈ (€€€€€€€€€€€É…Á °É½ÝÌ°½¹™¥œõ	AI½¹™¥œ¡‘¥µ•¹Í¥½¸ôÌ°±…å•ÉÌôÄ°‰…Ñ¡}Í¥é”ôÐ°•Á½¡ÌôÄ¤°Í••ôÜ°(€€€€€€€€¤(€€€€€€€ÕÍ•É}¥¹‘•à€ôíÕÍ•Èè¥¹‘•à™½È¥¹‘•à°ÕÍ•È¥¸•¹Õµ•É…Ñ”¡É…Á ¹ÕÍ•É}¥‘Ì¥ô(€€€€€€€¥Ñ•µ}¥¹‘•à€ôí¥Ñ•´è¥¹‘•à™½È¥¹‘•à°¥Ñ•´¥¸•¹Õµ•É…Ñ”¡É…Á ¹¥Ñ•µ}¥‘Ì¥ô(€€€€€€€•áÁ•É¥µ•¹Ð€ôY¥Í¥‰±•áÁ•É¥µ•¹Ð (€€€€€€€€€€€É…Á õÉ…Á °(€€€€€€€€€€€µ½‘•°õµ½‘•°°(€€€€€€€€€€€ÑÉ…¥¹¥¹}É½ÝÌõÉ½ÝÌ°(€€€€€€€€€€€Ù…±¥‘…Ñ¥½¹}É½ÝÌô¡%¹Ñ•É…Ñ¥½¸ È°€Ð°€Ô°9½¹”¤°%¹Ñ•É…Ñ¥½¸ Ì°€Ä°€Ô°9½¹”¤¤°(€€€€€€€€€€€™±…ÌõY¥Í¥‰±•±…M•Ð  ¤°€‰¡…Éˆ¤°(€€€€€€€€€€€Ñ…É•Ñ}¥Ñ•µ}¥‘Ìô Ô°¤°(€€€€€€€€€€€¹•…Ñ¥Ù•}¥Ñ•µ}¥¹‘¥•ÌõÑ½É ¹Ñ•¹Í½È¡mlÍt°lÑt°lÉt°lÑt°lÁt°lÉt°lÁut¤°(€€€€€€€€€€€Á½Í¥Ñ¥Ù•}ÕÍ•É}¥¹‘¥•ÌõÑ½É ¹Ñ•¹Í½È¡mÕÍ•É}¥¹‘•ámÉ½Ü¹ÕÍ•É}¥‘t™½ÈÉ½Ü¥¸É½ÝÍt¤°(€€€€€€€€€€€Á½Í¥Ñ¥Ù•}¥Ñ•µ}¥¹‘¥•ÌõÑ½É ¹Ñ•¹Í½È¡m¥Ñ•µ}¥¹‘•ámÉ½Ü¹¥Ñ•µ}¥‘t™½ÈÉ½Ü¥¸É½ÝÍt¤°(€€€€€€€€¤(€€€€€€€‰•™½É”€ôµ½‘•°¹Ñ¡•Ñ„¹½Áä ¤(€€€€€€€É•ÍÕ±Ð€ôÉÕ¹}ÍÑ…•‘}Õ¹±•…É¹¥¹œ¡•áÁ•É¥µ•¹Ð°½¹™¥œõMÑ…•‘U¹±•…É¹½¹™¥œ ¤¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑÅÕ…°¡É•ÍÕ±Ð¹É•™ÕÍ…±}É•…Í½¸°€‰%¹ÍÕ™™¥¥•¹Ñ±…Ìˆ¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑÅÕ…°¡É•ÍÕ±Ð¹ÍÑ…•Ì°€ ¤¤(€€€€€€€¹À¹Ñ•ÍÑ¥¹œ¹…ÍÍ•ÉÑ}…ÉÉ…å}•ÅÕ…°¡É•ÍÕ±Ð¹µ½‘•°¹Ñ¡•Ñ„°‰•™½É”¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑÅÕ…°¡É•ÍÕ±Ð¹Í•±•Ñ•‘}•áÑ•¹Í¥½¹}ÕÍ•É}¥‘Ì°€ ¤¤((€€€‘•˜Ñ•ÍÑ}Íµ…±±}Ù¥Í¥‰±•}Ý½É±‘}ÉÕ¹Í}¥¹™±Õ•¹•}ÍÑ…•}Ý¥Ñ¡½ÕÑ}•Ù…±Õ…Ñ½É}ÑÉÕÑ ¡Í•±˜¤€´ø9½¹”è(€€€€€€€É½ÝÌ€ô€ (€€€€€€€€€€€%¹Ñ•É…Ñ¥½¸ Ä°€Ä°€Ô°9½¹”¤°%¹Ñ•É…Ñ¥½¸ Ä°€È°€Ô°9½¹”¤°%¹Ñ•É…Ñ¥½¸ Ä°€Ô°€Ô°9½¹”¤°(€€€€€€€€€€€%¹Ñ•É…Ñ¥½¸ È°€Ä°€Ô°9½¹”¤°%¹Ñ•É…Ñ¥½¸ È°€Ì°€Ô°9½¹”¤°(€€€€€€€€€€€%¹Ñ•É…Ñ¥½¸ Ì°€È°€Ô°9½¹”¤°%¹Ñ•É…Ñ¥½¸ Ì°€Ð°€Ô°9½¹”¤°(€€€€€€€€¤(€€€€€€€É…Á €ô‰Õ¥±‘}ÕÍ•É}¡¥ÍÑ½Éä¡É½ÝÌ¤(€€€€€€€µ½‘•°€ô™¥Ñ}‰ÁÈ (€€€€€€€€€€€É…Á °É½ÝÌ°½¹™¥œõ	AI½¹™¥œ¡‘¥µ•¹Í¥½¸ôÌ°±…å•ÉÌôÄ°‰…Ñ¡}Í¥é”ôÐ°•Á½¡ÌôÄ¤°Í••ôÄÌ°(€€€€€€€€¤(€€€€€€€ÕÍ•É}¥¹‘•à€ôíÕÍ•Èè¥¹‘•à™½È¥¹‘•à°ÕÍ•È¥¸•¹Õµ•É…Ñ”¡É…Á ¹ÕÍ•É}¥‘Ì¥ô(€€€€€€€¥Ñ•µ}¥¹‘•à€ôí¥Ñ•´è¥¹‘•à™½È¥¹‘•à°¥Ñ•´¥¸•¹Õµ•É…Ñ”¡É…Á ¹¥Ñ•µ}¥‘Ì¥ô(€€€€€€€•áÁ•É¥µ•¹Ð€ôY¥Í¥‰±•áÁ•É¥µ•¹Ð (€€€€€€€€€€€É…Á õÉ…Á °(€€€€€€€€€€€µ½‘•°õµ½‘•°°(€€€€€€€€€€€ÑÉ…¥¹¥¹}É½ÝÌõÉ½ÝÌ°(€€€€€€€€€€€Ù…±¥‘…Ñ¥½¹}É½ÝÌô¡%¹Ñ•É…Ñ¥½¸ È°€Ð°€Ô°9½¹”¤°%¹Ñ•É…Ñ¥½¸ Ì°€Ä°€Ô°9½¹”¤¤°(€€€€€€€€€€€™±…ÌõY¥Í¥‰±•±…M•Ð ¡Y¥Í¥‰±•±…œ Ä°€Ä¸À¤°¤°€‰¡…Éˆ¤°(€€€€€€€€€€€Ñ…É•Ñ}¥Ñ•µ}¥‘Ìô Ô°¤°(€€€€€€€€€€€¹•…Ñ¥Ù•}¥Ñ•µ}¥¹‘¥•ÌõÑ½É ¹Ñ•¹Í½È¡mlÍt°lÑt°lÍt°lÅt°lÑt°lÁt°lÉut¤°(€€€€€€€€€€€Á½Í¥Ñ¥Ù•}ÕÍ•É}¥¹‘¥•ÌõÑ½É ¹Ñ•¹Í½È¡mÕÍ•É}¥¹‘•ámÉ½Ü¹ÕÍ•É}¥‘t™½ÈÉ½Ü¥¸É½ÝÍt¤°(€€€€€€€€€€€Á½Í¥Ñ¥Ù•}¥Ñ•µ}¥¹‘¥•ÌõÑ½É ¹Ñ•¹Í½È¡m¥Ñ•µ}¥¹‘•ámÉ½Ü¹¥Ñ•µ}¥‘t™½ÈÉ½Ü¥¸É½ÝÍt¤°(€€€€€€€€¤(€€€€€€€É•ÍÕ±Ð€ôÉÕ¹}ÍÑ…•‘}Õ¹±•…É¹¥¹œ (€€€€€€€€€€€•áÁ•É¥µ•¹Ð°(€€€€€€€€€€€½¹™¥œõMÑ…•‘U¹±•…É¹½¹™¥œ (€€€€€€€€€€€€€€€•áÑ•¹Í¥½¹}É…Ñ¥¼ôÀ°(€€€€€€€€€€€€€€€µ…ÍÍ}…ÀôÄ°(€€€€€€€€€€€€€€€ÕÑ¥±¥Ñå}Ñ½±•É…¹”ôÀ¸ää°(€€€€€€€€€€€€€€€Á…Ñ¡}ÍÑ•ÁÌôÄ°(€€€€€€€€€€€€€€€ÍÑ…•}•Á½¡ÌôÄ°(€€€€€€€€€€€€€€€É•½Ù•Éå}•Á½¡ÌôÀ°(€€€€€€€€€€€€€€€¹•…Ñ¥Ù•}Í…µÁ±•ÌôÄ°(€€€€€€€€€€€€€€€‘…µÁ¥¹œôÄÀ°(€€€€€€€€€€€€€€€Á½±¥Í¡}É•±…Ñ¥Ù•}Ñ½±•É…¹”ôÀ¸Ô°(€€€€€€€€€€€€€€€Á½±¥Í¡}µ…á}¥Ñ•É…Ñ¥½¹ÌôÈ°(€€€€€€€€€€€€€€€}¥Ñ•É…Ñ¥½¹ÌôÌ°(€€€€€€€€€€€€€€€}Ñ½±•É…¹”ôÀ¸Ô°(€€€€€€€€€€€€€€€Í••ôÄä°(€€€€€€€€€€€€¤°(€€€€€€€€¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑ%Í9½¹”¡É•ÍÕ±Ð¹É•™ÕÍ…±}É•…Í½¸¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑÅÕ…°¡±•¸¡É•ÍÕ±Ð¹ÍÑ…•Ì¤°€Ä¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑÅÕ…°¡É•ÍÕ±Ð¹™±…•‘}½Õ¹Ð°€Ä¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑÅÕ…°¡É•ÍÕ±Ð¹•áÑ•¹Í¥½¹}½Õ¹Ð°€À¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑÅÕ…°¡É•ÍÕ±Ð¹ÍÑ…•ÍlÁt¹ÍÑ…”°€Ä¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑ%Í9½Ñ9½¹”¡É•ÍÕ±Ð¹ÍÑ…•‘}•áÁ½ÍÕÉ•}¡…¹”¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑQÉÕ”¡µ…Ñ ¹¥Í™¥¹¥Ñ”¡É•ÍÕ±Ð¹ÍÑ…•‘}•áÁ½ÍÕÉ•}¡…¹”¤¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑ…±Í”¡É•ÍÕ±Ð¹™¥¹…±}¥¹™±Õ•¹•}É•±¥…‰±”¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑÅÕ…°¡É•ÍÕ±Ð¹™É½é•¹}•áÁ½ÍÕÉ•}½¡½ÉÑ}Í¥é”°€È¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑ%Í9½Ñ9½¹”¡É•ÍÕ±Ð¹™¥¹…±}•áÁ½ÍÕÉ•}ÍÕÉÉ½…Ñ”¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑ%Í9½Ñ9½¹”¡É•ÍÕ±Ð¹™¥¹…±}•áÁ½ÍÕÉ•}•á±Õ‘¥¹}•áÑ•¹Í¥½¹Ì¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑQÉÕ”¡µ…Ñ ¹¥Í™¥¹¥Ñ”¡É•ÍÕ±Ð¹™¥¹…±}•áÁ½ÍÕÉ•}ÍÕÉÉ½…Ñ”¤¤(€€€€€€€Í•±˜¹…ÍÍ•ÉÑ±µ½ÍÑÅÕ…° (€€€€€€€€€€€É•ÍÕ±Ð¹™¥¹…±}•áÁ½ÍÕÉ•}ÍÕÉÉ½…Ñ”°(€€€€€€€€€€€É•ÍÕ±Ð¹™¥¹…±}•áÁ½ÍÕÉ•}•á±Õ‘¥¹}•áÑ•¹Í¥½¹Ì°(€€€€€€€€¤()¥˜}}¹…µ•}|€ôô€‰}}µ…¥¹}|ˆè(€€€Õ¹¥ÑÑ•ÍÐ¹µ…¥¸ ¤(
+            raise ValueError("regularization must be non-negative and finite")
+
+
+class LightGCNOperator:
+    """Symmetric-normalized bipartite adjacency baseline used by gate G1."""
+
+    def __init__(self, user_ids: Sequence[int], item_ids: Sequence[int], rows: Sequence[Interaction]):
+        self.user_ids = tuple(user_ids)
+        self.item_ids = tuple(item_ids)
+        self.num_users = len(self.user_ids)
+        self.num_items = len(self.item_ids)
+        self.num_vertices = self.num_users + self.num_items
+        self.user_index = {value: index for index, value in enumerate(self.user_ids)}
+        self.item_index = {value: index for index, value in enumerate(self.item_ids)}
+        self.edge_users = []
+        self.edge_items = []
+        for row in rows:
+            self.edge_users.append(self.user_index[row.user_id])
+            self.edge_items.append(self.num_users + self.item_index[row.item_id])
+
+    def prepare_numpy(self):
+        import numpy as np
+        from scipy.sparse import csr_matrix
+
+        users = np.asarray(self.edge_users, dtype=np.int64)
+        items = np.asarray(self.edge_items, dtype=np.int64)
+        user_degree = np.bincount(users, minlength=self.num_users).astype(np.float32)
+        item_degree = np.bincount(items - self.num_users, minlength=self.num_items).astype(np.float32)
+        inv_sqrt_user = np.zeros_like(user_degree)
+        inv_sqrt_item = np.zeros_like(item_degree)
+        inv_sqrt_user[user_degree > 0] = 1.0 / np.sqrt(user_degree[user_degree > 0])
+        inv_sqrt_item[item_degree > 0] = 1.0 / np.sqrt(item_degree[item_degree > 0])
+        coefficients = inv_sqrt_user[users] * inv_sqrt_item[items - self.num_users]
+        rows = np.concatenate((users, items))
+        columns = np.concatenate((items, users))
+        values = np.concatenate((coefficients, coefficients))
+        adjacency = csr_matrix(
+            (values, (rows, columns)), shape=(self.num_vertices, self.num_vertices), dtype=np.float32
+        )
+        return SparseAdjacencyPropagation(adjacency)
+
+
+@dataclass(slots=True)
+class SparseAdjacencyPropagation:
+    adjacency: object
+
+    def apply(self, features):
+        return self.adjacency.dot(features)
+
+
+@dataclass(slots=True)
+class TrainedModel:
+    operator: Hypergraph | LightGCNOperator
+    propagation: object
+    user_ids: tuple[int, ...]
+    item_ids: tuple[int, ...]
+    theta: object
+    config: BPRConfig
+    history: dict[int, frozenset[int]]
+    elapsed_seconds: float
+    epoch_losses: tuple[float, ...]
+
+    @property
+    def user_index(self) -> dict[int, int]:
+        return {value: index for index, value in enumerate(self.user_ids)}
+
+    @property
+    def item_index(self) -> dict[int, int]:
+        return {value: index for index, value in enumerate(self.item_ids)}
+
+    def embeddings(self):
+        import numpy as np
+
+        states = [self.theta]
+        current = self.theta
+        for _ in range(self.config.layers):
+            current = self.propagation.apply(current)
+            states.append(current)
+        return np.mean(np.stack(states, axis=0), axis=0)
+
+    def score_all(self, user_id: int):
+        import numpy as np
+
+        users = self.user_index
+        if user_id not in users:
+            raise KeyError(f"unknown user ID {user_id}")
+        encoded = self.embeddings()
+        user_vector = encoded[users[user_id]]
+        item_vectors = encoded[self.operator.num_users :]
+        return item_vectors @ user_vector
+
+    def rank_items(self, user_id: int, *, exclude_seen: bool = True) -> list[tuple[int, float]]:
+        scores = self.score_all(user_id)
+        seen = self.history.get(user_id, frozenset()) if exclude_seen else frozenset()
+        rows = [
+            (item_id, float(scores[index]))
+            for index, item_id in enumerate(self.item_ids)
+            if item_id not in seen
+        ]
+        rows.sort(key=lambda pair: (-pair[1], pair[0]))
+        return rows
+
+
+def fit_bpr(
+    operator: Hypergraph | LightGCNOperator,
+    rows: Sequence[Interaction],
+    *,
+    config: BPRConfig,
+    seed: int,
+    source_weights: Sequence[float] | None = None,
+    initial_theta=None,
+    epoch_callback: Callable[[int, TrainedModel], None] | None = None,
+) -> TrainedModel:
+    """Train the specified linear propagation model with sampled BPR negatives."""
+    import numpy as np
+
+    config.validate()
+    if not rows:
+        raise ValueError("BPR training requires at least one positive interaction")
+    user_ids = tuple(operator.user_ids)
+    item_ids = tuple(operator.item_ids)
+    user_index = {value: index for index, value in enumerate(user_ids)}
+    item_index = {value: index for index, value in enumerate(item_ids)}
+    if source_weights is None:
+        source_weights_array = np.ones(len(user_ids), dtype=np.float32)
+    else:
+        source_weights_array = np.asarray(source_weights, dtype=np.float32)
+        if source_weights_array.shape != (len(user_ids),):
+            raise ValueError("source weight count must equal the operator user count")
+        if not np.all(np.isfinite(source_weights_array)) or np.any(source_weights_array < 0) or np.any(source_weights_array > 1):
+            raise ValueError("source weights must be finite and in [0, 1]")
+    if isinstance(operator, LightGCNOperator) and not np.all(source_weights_array == 1):
+        raise ValueError("LightGCN comparison operator does not support source reweighting")
+    positives_u = np.fromiter((user_index[row.user_id] for row in rows), dtype=np.int64)
+    positives_i = np.fromiter((item_index[row.item_id] for row in rows), dtype=np.int64)
+    history_mutable: dict[int, set[int]] = {user_id: set() for user_id in user_ids}
+    internal_history: list[set[int]] = [set() for _ in user_ids]
+    for row in rows:
+        if source_weights_array[user_index[row.user_id]] > 0:
+            history_mutable[row.user_id].add(row.item_id)
+            internal_history[user_index[row.user_id]].add(item_index[row.item_id])
+    if any(len(items) >= len(item_ids) for items in internal_history):
+        raise ValueError("a user has no eligible negative item")
+
+    rng = np.random.default_rng(seed)
+    propagation = (
+        operator.prepare_numpy(source_weights_array)
+        if isinstance(operator, Hypergraph)
+        else operator.prepare_numpy()
+    )
+    if initial_theta is None:
+        theta = rng.normal(0.0, 0.01, size=(operator.num_vertices, config.dimension)).astype(np.float32)
+    else:
+        theta = np.asarray(initial_theta, dtype=np.float32).copy()
+        if theta.shape != (operator.num_vertices, config.dimension) or not np.all(np.isfinite(theta)):
+            raise ValueError("initial_theta has the wrong shape or contains non-finite values")
+    first_moment = np.zeros_like(theta)
+    second_moment = np.zeros_like(theta)
+    beta1, beta2, adam_eps = 0.9, 0.999, 1e-8
+    epoch_losses: list[float] = []
+    start_time = time.perf_counter()
+    step = 0
+
+    for _epoch in range(config.epochs):
+        order = rng.permutation(len(rows))
+        total_loss = 0.0
+        seen_count = 0
+        for start in range(0, len(order), config.batch_size):
+            batch = order[start : start + config.batch_size]
+            batch_users = positives_u[batch]
+            batch_positive = positives_i[batch]
+            batch_negative = rng.integers(0, len(item_ids), size=len(batch), dtype=np.int64)
+            invalid = np.fromiter(
+                (
+                    negative in internal_history[user]
+                    for user, negative in zip(batch_users.tolist(), batch_negative.tolist())
+                ),
+                dtype=np.bool_,
+                count=len(batch),
+            )
+            while np.any(invalid):
+                batch_negative[invalid] = rng.integers(0, len(item_ids), size=int(invalid.sum()))
+                invalid = np.fromiter(
+                    (
+                        negative in internal_history[user]
+                        for user, negative in zip(batch_users.tolist(), batch_negative.tolist())
+                    ),
+                    dtype=np.bool_,
+                    count=len(batch),
+                )
+            positive_vertices = operator.num_users + batch_positive
+            negative_vertices = operator.num_users + batch_negative
+
+            propagated = [theta]
+            for _ in range(config.layers):
+                propagated.append(propagation.apply(propagated[-1]))
+            encoded = np.mean(np.stack(propagated, axis=0), axis=0)
+            user_vectors = encoded[batch_users]
+            positive_vectors = encoded[positive_vertices]
+            negative_vectors = encoded[negative_vertices]
+            differences = np.sum(user_vectors * (positive_vectors - negative_vectors), axis=1)
+            # -log(sigmoid(difference)) = logaddexp(0, -difference).
+            batch_loss = np.logaddexp(0.0, -differences)
+            batch_source_weights = source_weights_array[batch_users]
+            total_loss += float((batch_loss * batch_source_weights).sum())
+            seen_count += len(batch)
+
+            multiplier = (
+                1.0 / (1.0 + np.exp(np.clip(-differences, -40.0, 40.0))) - 1.0
+            ) * batch_source_weights
+            grad_encoded = np.zeros_like(encoded)
+            np.add.at(
+                grad_encoded,
+                batch_users,
+                multiplier[:, None] * (positive_vectors - negative_vectors),
+            )
+            np.add.at(grad_encoded, positive_vertices, multiplier[:, None] * user_vectors)
+            np.add.at(grad_encoded, negative_vertices, -multiplier[:, None] * user_vectors)
+            # Unbiased minibatch gradient for the summed objective in the guide.
+            grad_encoded *= len(rows) / len(batch)
+            grad_theta = grad_encoded
+            current_grad = grad_encoded
+            for _ in range(config.layers):
+                current_grad = propagation.apply(current_grad)
+                grad_theta = grad_theta + current_grad
+            grad_theta /= config.layers + 1
+            grad_theta += config.regularization * theta
+
+            step += 1
+            first_moment *= beta1
+            first_moment += (1.0 - beta1) * grad_theta
+            second_moment *= beta2
+            second_moment += (1.0 - beta2) * grad_theta * grad_theta
+            corrected_first = first_moment / (1.0 - beta1**step)
+            corrected_second = second_moment / (1.0 - beta2**step)
+            theta -= config.learning_rate * corrected_first / (np.sqrt(corrected_second) + adam_eps)
+        epoch_losses.append(total_loss / max(1, seen_count))
+        if epoch_callback is not None:
+            snapshot = TrainedModel(
+                operator=operator,
+                propagation=propagation,
+                user_ids=user_ids,
+                item_ids=item_ids,
+                theta=theta.copy(),
+                config=config,
+                history={user_id: frozenset(items) for user_id, items in history_mutable.items()},
+                elapsed_seconds=time.perf_counter() - start_time,
+                epoch_losses=tuple(epoch_losses),
+            )
+            epoch_callback(_epoch + 1, snapshot)
+
+    return TrainedModel(
+        operator=operator,
+        propagation=propagation,
+        user_ids=user_ids,
+        item_ids=item_ids,
+        theta=theta,
+        config=config,
+        history={user_id: frozenset(items) for user_id, items in history_mutable.items()},
+        elapsed_seconds=time.perf_counter() - start_time,
+        epoch_losses=tuple(epoch_losses),
+    )
