@@ -62,12 +62,31 @@ in run manifests and must be reviewed before external research claims:
   propagation layer, learning rate 0.003, regularization 0.0001, and batch
   size 4096 (mean validation NDCG@20 `0.1772994602`). The full table is saved
   in ignored `results/preregistration/uh-profile-ml-100k.json`.
-- The profiled G1 was rerun on the original five paired MovieLens-1M seeds,
+- The first profiled G1 was rerun on the original five paired MovieLens-1M seeds,
   reusing the exact prior LightGCN comparison results. Mean UH NDCG@20 was
   `0.1212943491` versus `0.1291315584` for LightGCN, a 6.07% relative gap
   against the unchanged 5% limit. Variance (2.26%), finite-difference gradient
   (1.26e-7), and same-seed reproducibility checks passed; G1 remains failed.
   The full report is ignored at `results/gates/g1-ml-1m-profiled.json`.
+- After observing that gate failure, the user approved one broader
+  development-only profile search. The fixed candidate set is 108 configurations:
+  dimension `{32,64,128}`, layers `{1,2,3}`, learning rate
+  `{0.0003,0.001,0.003,0.01}`, regularization `{0.00001,0.0001,0.001}`, and
+  batch size fixed at 4096. It uses fresh MovieLens-100K development worlds
+  from parent seed `20261112`; the model architecture, BPR objective, fixed
+  E*, main dataset, attack, unlearning method, and G1 threshold stay unchanged.
+  Its candidate table/profile and a separate profiled G1 report will be saved
+  to ignored `results/preregistration/uh-profile-v2-ml-100k.json` and
+  `results/gates/g1-ml-1m-profiled-v2.json`.
+- The expanded profile completed all 540 fits in 680.34 seconds and selected
+  dimension 128, one layer, learning rate 0.01, regularization 0.00001, and
+  batch size 4096 at E*=3 (mean ML-100K validation NDCG@20 `0.1764429364`).
+- G1 was rerun on the same five MovieLens-1M seeds with the saved LightGCN
+  comparison. Mean UH NDCG@20 was `0.1710923247` versus LightGCN's
+  `0.1291315584`, a 32.49% gap. Relative standard deviation (1.43%), finite
+  difference error (`1.26e-7`), and reproducibility (0.0) passed. G1 failed
+  only the unchanged 5% relative gap. The report is ignored at
+  `results/gates/g1-ml-1m-profiled-v2.json`.
 - V1 uses a convex SPD quadratic toy and compares the production CG/implicit
   derivative path with exact solve-based retraining. The local run passed with
   maximum source relative error `2.06e-10`; report saved at
@@ -75,11 +94,13 @@ in run manifests and must be reviewed before external research claims:
 
 ## Still open or not yet run
 
-- Both the original G1 (13.06% gap) and the development-profiled G1 (6.07%
-  gap) fail the relative NDCG gate. Do not run a main-candidate attack against
-  a failed G1. A new profiling decision would require development-only tuning
-  with its full candidate set recorded; do not weaken the G1 threshold. G2 is
-  an empirical attack strength gate and is not changed to make a world pass.
+- The original G1 (13.06%), first profiled G1 (6.07%), and expanded-profile
+  G1 (32.49%) all fail the relative NDCG gate. The latter profile was selected
+  by maximum ML-100K validation NDCG and overperforms LightGCN on ML-1M. A
+  parity-based development selection objective would be a separate research
+  decision; do not silently change the selection rule or 5% gate. Do not run a
+  main-candidate attack against a failed G1. G2 remains empirical and its
+  threshold is unchanged.
 - V2 (200 leave-one-source-out cases plus attackers), V3 group-removal
   validation, and V4 placebo distinguishability are not implemented as a full
   validation campaign yet. Their thresholds were not stated in the guide; no
